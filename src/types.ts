@@ -27,8 +27,7 @@ export type CanvasObject = {
 
   appearFrame: number;
   disappearFrame?: number; // defaults to Infinity
-
-  role?: 'core' | 'context';
+ 
 
   startConnection?: Connection;
   endConnection?: Connection;
