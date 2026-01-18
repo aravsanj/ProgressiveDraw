@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { CanvasObject } from '../types';
 import { useWhiteboard } from '../store/useWhiteboard';
-import { BoxShape } from './shapes/BoxShape';
+import { RectangleShape } from './shapes/RectangleShape';
 import { ArrowShape } from './shapes/ArrowShape';
 import { TextShape } from './shapes/TextShape';
 import { useGesture } from '@use-gesture/react';
@@ -178,7 +178,7 @@ const PointHandle: React.FC<{
         let currentPoint = { ...unsnapped };
 
         for (const otherObj of Object.values(allObjects)) {
-          if (otherObj.type === 'box' && otherObj.id !== object.id) {
+          if (otherObj.type === 'rectangle' && otherObj.id !== object.id) {
             const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
             const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
               { id: 'n', x: ox + width / 2, y: oy },
@@ -241,7 +241,7 @@ const PointHandle: React.FC<{
 };
 
 export const ObjectRenderer: React.FC<Props> = ({ object }) => {
-  const { currentStep, ui, selectObject, updateObject, setEditingObject, moveObjects } =
+  const { currentFrame, ui, selectObject, updateObject, setEditingObject, moveObjects } =
     useWhiteboard();
   const editRef = useRef<HTMLDivElement>(null);
 
@@ -271,7 +271,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
   }, [isEditing]);
 
   const isVisible =
-    currentStep >= object.appearStep && currentStep < (object.disappearStep ?? Infinity);
+    currentFrame >= object.appearFrame && currentFrame < (object.disappearFrame ?? Infinity);
 
   const isSelected = ui.selectedObjectIds.includes(object.id);
 
@@ -305,7 +305,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       onDoubleClick: (state) => {
         // Prevent event from bubbling up to create new objects if applicable
         state.event.stopPropagation();
-        if (object.type === 'box' || object.type === 'text' || object.type === 'arrow') {
+        if (object.type === 'rectangle' || object.type === 'text' || object.type === 'arrow') {
           setEditingObject(object.id);
         }
       },
@@ -329,8 +329,8 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       <g style={{ pointerEvents: isEditing ? 'none' : 'auto' }}>
         {(() => {
           switch (object.type) {
-            case 'box':
-              return <BoxShape object={visibleObject} />;
+            case 'rectangle':
+              return <RectangleShape object={visibleObject} />;
             case 'arrow':
               return <ArrowShape object={visibleObject} />;
             case 'text':
@@ -380,16 +380,16 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
       {isEditing && (
         <foreignObject
-          x={object.type === 'box' ? x : editX - 50}
-          y={object.type === 'box' ? y : editY - 10}
-          width={object.type === 'box' ? width : editWidth + 100}
-          height={object.type === 'box' ? height : editHeight + 80}
+          x={object.type === 'rectangle' ? x : editX - 50}
+          y={object.type === 'rectangle' ? y : editY - 10}
+          width={object.type === 'rectangle' ? width : editWidth + 100}
+          height={object.type === 'rectangle' ? height : editHeight + 80}
           style={{ pointerEvents: 'auto', cursor: 'text' }}
         >
           <div
             className={cn(
               'w-full h-full flex justify-center p-2',
-              object.type === 'box' ? 'items-center' : 'items-start',
+              object.type === 'rectangle' ? 'items-center' : 'items-start',
               'transition-all duration-200',
             )}
           >
@@ -400,14 +400,14 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               tabIndex={0}
               className={cn(
                 'w-full border-none outline-none overflow-hidden text-center cursor-text',
-                object.type === 'box'
+                object.type === 'rectangle'
                   ? 'text-white p-1'
                   : 'text-white p-3 bg-zinc-900/90 rounded-lg shadow-2xl backdrop-blur-sm ring-2 ring-blue-500/50 shadow-blue-500/20',
               )}
               style={{
                 fontSize:
                   object.style.fontSize ||
-                  (object.type === 'arrow' ? 12 : object.type === 'box' ? 14 : 24),
+                  (object.type === 'arrow' ? 12 : object.type === 'rectangle' ? 14 : 24),
                 fontFamily: 'Outfit, Inter, sans-serif',
                 wordBreak: 'break-word',
                 whiteSpace: 'pre-wrap',
@@ -456,7 +456,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           )}
 
           {/* Resize handles */}
-          {object.type === 'box' && (
+          {object.type === 'rectangle' && (
             <>
               {/* Edge handles */}
               {['n', 's', 'e', 'w'].map((id) => (
@@ -509,7 +509,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       )}
 
       {/* Anchor points for arrows */}
-      {object.type === 'box' && (isSelected || ui.activeTool === 'arrow') && (
+      {object.type === 'rectangle' && (isSelected || ui.activeTool === 'arrow') && (
         <>
           {[
             { id: 'n' as const, cx: x + width / 2, cy: y },

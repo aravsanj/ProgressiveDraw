@@ -16,11 +16,11 @@ export const UIOverlay: React.FC = () => {
   const {
     ui,
     objects,
-    currentStep,
+    currentFrame,
     setMode,
     setTool,
-    nextStep,
-    prevStep,
+    nextFrame,
+    prevFrame,
     updateObject,
     deleteObject,
     deleteObjects,
@@ -33,11 +33,11 @@ export const UIOverlay: React.FC = () => {
     return (
       <div className="absolute bottom-6 right-6 flex items-center space-x-4">
         <div className="bg-zinc-900/90 text-zinc-100 rounded-full px-4 py-2 backdrop-blur flex items-center space-x-4 shadow-xl border border-zinc-800">
-          <button onClick={prevStep} className="hover:text-blue-400">
+          <button onClick={prevFrame} className="hover:text-blue-400">
             <ChevronLeft />
           </button>
-          <span className="font-mono font-bold">Step {currentStep}</span>
-          <button onClick={nextStep} className="hover:text-blue-400">
+          <span className="font-mono font-bold">Frame {currentFrame}</span>
+          <button onClick={nextFrame} className="hover:text-blue-400">
             <ChevronRight />
           </button>
         </div>
@@ -84,9 +84,9 @@ export const UIOverlay: React.FC = () => {
         <div className="h-px bg-zinc-800 my-1 mx-2" />
         <ToolButton
           icon={<Square size={20} />}
-          label="Box"
-          active={ui.activeTool === 'box'}
-          onClick={() => setTool('box')}
+          label="Rectangle"
+          active={ui.activeTool === 'rectangle'}
+          onClick={() => setTool('rectangle')}
         />
         <ToolButton
           icon={<ArrowRight size={20} />}
@@ -102,20 +102,20 @@ export const UIOverlay: React.FC = () => {
         />
       </div>
 
-      {/* Bottom Center: Step Navigation */}
+      {/* Bottom Center: Frame Navigation */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 rounded-full shadow-lg px-6 py-2 flex items-center space-x-6 pointer-events-auto border border-zinc-800 text-zinc-200">
         <button
-          onClick={prevStep}
+          onClick={prevFrame}
           className="hover:bg-zinc-800 p-2 rounded-full text-zinc-400 hover:text-zinc-100"
         >
           <ChevronLeft />
         </button>
         <div className="text-center">
-          <div className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Step</div>
-          <div className="text-xl font-bold font-mono leading-none">{currentStep}</div>
+          <div className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Frame</div>
+          <div className="text-xl font-bold font-mono leading-none">{currentFrame}</div>
         </div>
         <button
-          onClick={nextStep}
+          onClick={nextFrame}
           className="hover:bg-zinc-800 p-2 rounded-full text-zinc-400 hover:text-zinc-100"
         >
           <ChevronRight />
@@ -138,15 +138,15 @@ export const UIOverlay: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-500 block">Appearance Steps</label>
+            <label className="text-xs font-bold text-zinc-500 block">Appearance Frames</label>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <span className="text-xs text-zinc-500">Appear</span>
                 <input
                   type="number"
-                  value={singleSelection.appearStep}
+                  value={singleSelection.appearFrame}
                   onChange={(e) =>
-                    updateObject(singleSelection.id, { appearStep: parseInt(e.target.value) || 0 })
+                    updateObject(singleSelection.id, { appearFrame: parseInt(e.target.value) || 0 })
                   }
                   className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200"
                 />
@@ -157,14 +157,14 @@ export const UIOverlay: React.FC = () => {
                   type="number"
                   placeholder="∞"
                   value={
-                    singleSelection.disappearStep === Infinity ||
-                    singleSelection.disappearStep === undefined
+                    singleSelection.disappearFrame === Infinity ||
+                    singleSelection.disappearFrame === undefined
                       ? ''
-                      : singleSelection.disappearStep
+                      : singleSelection.disappearFrame
                   }
                   onChange={(e) =>
                     updateObject(singleSelection.id, {
-                      disappearStep: e.target.value ? parseInt(e.target.value) : undefined,
+                      disappearFrame: e.target.value ? parseInt(e.target.value) : undefined,
                     })
                   }
                   className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200"

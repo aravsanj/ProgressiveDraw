@@ -1,4 +1,4 @@
-export type CanvasObjectType = 'box' | 'arrow' | 'text' | 'annotation';
+export type CanvasObjectType = 'rectangle' | 'arrow' | 'text' | 'annotation';
 
 export type Connection = {
   objectId: string;
@@ -25,8 +25,8 @@ export type CanvasObject = {
 
   text?: string; // Added specifically for text/annotation objects
 
-  appearStep: number;
-  disappearStep?: number; // defaults to Infinity
+  appearFrame: number;
+  disappearFrame?: number; // defaults to Infinity
 
   role?: 'core' | 'context' | 'annotation';
 
@@ -34,7 +34,7 @@ export type CanvasObject = {
   endConnection?: Connection;
 };
 
-export type Tool = 'select' | 'box' | 'arrow' | 'text';
+export type Tool = 'select' | 'rectangle' | 'arrow' | 'text';
 
 export type WhiteboardUiState = {
   mode: 'edit' | 'present';
@@ -48,6 +48,6 @@ export type WhiteboardUiState = {
 
 export type WhiteboardState = {
   objects: Record<string, CanvasObject>;
-  currentStep: number;
+  currentFrame: number;
   ui: WhiteboardUiState;
 };

@@ -1,7 +1,7 @@
 import React from 'react';
 import type { CanvasObject } from '../../types';
 
-export const BoxShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
+export const RectangleShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
   const { geometry, style } = object;
   const { x, y, width = 0, height = 0 } = geometry;
 

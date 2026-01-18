@@ -20,7 +20,7 @@ export const Canvas: React.FC = () => {
     selectObjects,
     deleteObjects,
     clearSelection,
-    currentStep,
+    currentFrame,
     setEditingObject,
   } = useWhiteboard();
   const [drawingId, setDrawingId] = useState<string | null>(null);
@@ -126,8 +126,8 @@ export const Canvas: React.FC = () => {
             geometry: {
               x,
               y,
-              width: type === 'box' ? 1 : undefined,
-              height: type === 'box' ? 1 : undefined,
+              width: type === 'rectangle' ? 1 : undefined,
+              height: type === 'rectangle' ? 1 : undefined,
               points:
                 type === 'arrow'
                   ? [
@@ -138,10 +138,10 @@ export const Canvas: React.FC = () => {
             },
             style: {
               stroke: '#e4e4e7',
-              fill: type === 'box' ? 'rgba(255,255,255,0.05)' : undefined,
+              fill: type === 'rectangle' ? 'rgba(255,255,255,0.05)' : undefined,
               fontSize: type === 'arrow' ? 12 : undefined,
             },
-            appearStep: currentStep,
+            appearFrame: currentFrame,
             text: '',
             startConnection,
           });
@@ -155,7 +155,7 @@ export const Canvas: React.FC = () => {
 
           const start = startPosRef.current;
 
-          if (obj.type === 'box') {
+          if (obj.type === 'rectangle') {
             updateObject(drawingId, {
               geometry: {
                 ...obj.geometry,
@@ -183,10 +183,10 @@ export const Canvas: React.FC = () => {
           if (ui.activeTool === 'select' && selectionRect) {
             const selectedIds = Object.values(objects)
               .filter((obj) => {
-                // If it's a box, check if it's within the selection rect
-                if (obj.type === 'box') {
+                // If it's a rectangle, check if it's within the selection rect
+                if (obj.type === 'rectangle') {
                   const { x, y, width = 0, height = 0 } = obj.geometry;
-                  // Check if any part of the box is inside the selection rect (intersection)
+                  // Check if any part of the rectangle is inside the selection rect (intersection)
                   return (
                     x < selectionRect.x + selectionRect.width &&
                     x + width > selectionRect.x &&
@@ -222,7 +222,7 @@ export const Canvas: React.FC = () => {
 
           setIsPanning(false);
           setSelectionRect(null);
-          // Only clear drawingId for non-arrow objects (boxes, etc.)
+          // Only clear drawingId for non-arrow objects (rectangles, etc.)
           // Arrows stay active until the second click
           const obj = drawingId ? objects[drawingId] : null;
           if (!obj || obj.type !== 'arrow') {
@@ -320,7 +320,7 @@ export const Canvas: React.FC = () => {
           } else if (type === 'arrow') {
             const SNAP_THRESHOLD = 25 / ui.zoom;
             for (const otherObj of Object.values(objects)) {
-              if (otherObj.type === 'box') {
+              if (otherObj.type === 'rectangle') {
                 const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
                 const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
                   { id: 'n', x: ox + width / 2, y: oy },
@@ -357,14 +357,14 @@ export const Canvas: React.FC = () => {
                 stroke: '#e4e4e7',
                 fontSize: 12,
               },
-              appearStep: currentStep,
+              appearFrame: currentFrame,
               text: '',
               startConnection,
             });
             setDrawingId(id);
             selectObject(id);
             startPosRef.current = { x, y };
-          } else if (type === 'box') {
+          } else if (type === 'rectangle') {
             pendingDrawRef.current = { type, x, y, startConnection };
             startPosRef.current = { x, y };
           } else {
@@ -382,7 +382,7 @@ export const Canvas: React.FC = () => {
                 fill: undefined,
                 fontSize: 24,
               },
-              appearStep: currentStep,
+              appearFrame: currentFrame,
               text: type === 'text' ? '' : undefined,
               startConnection,
             });
@@ -434,7 +434,7 @@ export const Canvas: React.FC = () => {
     let endConnection = undefined;
 
     for (const otherObj of Object.values(objects)) {
-      if (otherObj.type === 'box' && otherObj.id !== id) {
+      if (otherObj.type === 'rectangle' && otherObj.id !== id) {
         const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
         const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
           { id: 'n', x: ox + width / 2, y: oy },

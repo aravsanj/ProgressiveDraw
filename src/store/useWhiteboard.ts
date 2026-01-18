@@ -6,9 +6,9 @@ interface WhiteboardActions {
   updateObject: (id: string, updates: Partial<CanvasObject>) => void;
   deleteObject: (id: string) => void;
 
-  setStep: (step: number) => void;
-  nextStep: () => void;
-  prevStep: () => void;
+  setFrame: (frame: number) => void;
+  nextFrame: () => void;
+  prevFrame: () => void;
 
   setMode: (mode: 'edit' | 'present') => void;
   toggleSpotlight: () => void;
@@ -30,7 +30,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) => ({
   objects: {},
-  currentStep: 0,
+  currentFrame: 0,
   ui: {
     mode: 'edit',
     activeTool: 'select',
@@ -58,9 +58,9 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
       const newObj = { ...obj, ...updates };
       const newObjects = { ...state.objects, [id]: newObj };
 
-      if (newObj.type === 'box') {
-        const getAnchorPos = (box: CanvasObject, anchorId: string) => {
-          const { x, y, width = 0, height = 0 } = box.geometry;
+      if (newObj.type === 'rectangle') {
+        const getAnchorPos = (rectangle: CanvasObject, anchorId: string) => {
+          const { x, y, width = 0, height = 0 } = rectangle.geometry;
           switch (anchorId) {
             case 'n':
               return { x: x + width / 2, y };
@@ -123,11 +123,11 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
     });
   },
 
-  setStep: (step) => set({ currentStep: Math.max(0, step) }),
+  setFrame: (frame) => set({ currentFrame: Math.max(0, frame) }),
 
-  nextStep: () => set((state) => ({ currentStep: state.currentStep + 1 })),
+  nextFrame: () => set((state) => ({ currentFrame: state.currentFrame + 1 })),
 
-  prevStep: () => set((state) => ({ currentStep: Math.max(0, state.currentStep - 1) })),
+  prevFrame: () => set((state) => ({ currentFrame: Math.max(0, state.currentFrame - 1) })),
 
   setMode: (mode) => set((state) => ({ ui: { ...state.ui, mode } })),
 
@@ -205,7 +205,7 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
         }
       });
 
-      // Second pass: update any arrows connected to moved boxes
+      // Second pass: update any arrows connected to moved rectangles
       // This is a bit expensive but necessary for consistency
       Object.keys(newObjects).forEach((id) => {
         // Skip if this object was already moved in the first pass
