@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import type { CanvasObject } from '../types';
 import { useWhiteboard } from '../store/useWhiteboard';
@@ -6,6 +6,7 @@ import { BoxShape } from './shapes/BoxShape';
 import { ArrowShape } from './shapes/ArrowShape';
 import { TextShape } from './shapes/TextShape';
 import { useGesture } from '@use-gesture/react';
+import { cn } from '../lib/utils';
 
 interface Props {
   object: CanvasObject;
@@ -93,7 +94,7 @@ const ResizeHandle: React.FC<{
         style={{ cursor: getCursor(handle) }}
         data-anchor="true"
         data-resize-handle="true"
-        {...(bind() as any)}
+        {...bind()}
       />
     );
   }
@@ -105,13 +106,26 @@ const ResizeHandle: React.FC<{
   const hitWidth = 6;
 
   if (handle === 'n') {
-    rx = x; ry = y - padding - hitWidth / 2; rw = width; rh = hitWidth;
+    rx = x;
+    ry = y - padding - hitWidth / 2;
+    rw = width;
+    rh = hitWidth;
   } else if (handle === 's') {
-    rx = x; ry = y + height + padding - hitWidth / 2; rw = width; rh = hitWidth;
+    rx = x;
+    ry = y + height + padding - hitWidth / 2;
+    rw = width;
+    rh = hitWidth;
   } else if (handle === 'w') {
-    rx = x - padding - hitWidth / 2; ry = y; rw = hitWidth; rh = height;
-  } else { // 'e'
-    rx = x + width + padding - hitWidth / 2; ry = y; rw = hitWidth; rh = height;
+    rx = x - padding - hitWidth / 2;
+    ry = y;
+    rw = hitWidth;
+    rh = height;
+  } else {
+    // 'e'
+    rx = x + width + padding - hitWidth / 2;
+    ry = y;
+    rw = hitWidth;
+    rh = height;
   }
 
   return (
@@ -124,7 +138,7 @@ const ResizeHandle: React.FC<{
       style={{ cursor: getCursor(handle) }}
       data-anchor="true"
       data-resize-handle="true"
-      {...(bind() as any)}
+      {...bind()}
     />
   );
 };
@@ -143,7 +157,7 @@ const PointHandle: React.FC<{
       onDrag: ({ movement: [mx, my], first, memo, event }) => {
         event.stopPropagation();
         const scale = zoom;
-        
+
         // Use memo to store the initial point position when drag starts
         if (first) {
           memo = { ...object.geometry.points![pointIndex] };
@@ -221,26 +235,38 @@ const PointHandle: React.FC<{
       stroke="#3b82f6"
       strokeWidth={1.5}
       style={{ cursor: 'pointer' }}
-      {...(bind() as any)}
+      {...bind()}
     />
   );
 };
 
 export const ObjectRenderer: React.FC<Props> = ({ object }) => {
-  const { currentStep, ui, selectObject, updateObject } = useWhiteboard();
-  const [isEditing, setIsEditing] = useState(false);
+  const { currentStep, ui, selectObject, updateObject, setEditingObject, moveObjects } =
+    useWhiteboard();
   const editRef = useRef<HTMLDivElement>(null);
+
+  const isEditing = ui.editingObjectId === object.id;
 
   useEffect(() => {
     if (isEditing && editRef.current) {
-      editRef.current.focus();
-      // Move cursor to end of text
-      const selection = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(editRef.current);
-      range.collapse(false);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
+      // Small timeout to ensure DOM is ready in all browsers/SVG environments
+      const timer = setTimeout(() => {
+        if (!editRef.current) return;
+        editRef.current.focus();
+
+        // Move cursor to end of text
+        try {
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(editRef.current);
+          range.collapse(false);
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        } catch (err) {
+          console.warn('Failed to set selection:', err);
+        }
+      }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isEditing]);
 
@@ -256,57 +282,31 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         const target = e.target as HTMLElement;
         if (target.getAttribute('data-anchor') === 'true') return;
 
-        if (ctrlKey || e.button !== 0 || ui.activeTool !== 'select' || isEditing) return;
+        if (ctrlKey || e.button !== 0 || isEditing) return;
 
-        event.stopPropagation();
+        if (ui.activeTool !== 'arrow') {
+          event.stopPropagation();
+        }
         selectObject(object.id, e.shiftKey);
       },
-      onDrag: ({
-        delta: [dx, dy],
-        event,
-        buttons,
-        ctrlKey,
-      }) => {
+      onDrag: ({ delta: [dx, dy], event, buttons, ctrlKey }) => {
         const target = event.target as HTMLElement;
         if (target.getAttribute('data-anchor') === 'true') return;
-        
+
         if (buttons !== 1 || ctrlKey || isEditing) return;
         event.stopPropagation();
 
         const scale = ui.zoom;
-        if (object.type === 'arrow' && object.geometry.points) {
-          const newPoints = object.geometry.points.map(p => ({
-            x: p.x + dx / scale,
-            y: p.y + dy / scale
-          }));
-          updateObject(object.id, {
-            geometry: {
-              ...object.geometry,
-              points: newPoints,
-            },
-            // Clear connections when moving the whole arrow? 
-            // Usually yes, unless we want to move the connected boxes too, but that's complex.
-            startConnection: undefined,
-            endConnection: undefined,
-          });
-        } else {
-          const newX = object.geometry.x + dx / scale;
-          const newY = object.geometry.y + dy / scale;
+        const isSelected = ui.selectedObjectIds.includes(object.id);
+        const idsToMove = isSelected ? ui.selectedObjectIds : [object.id];
 
-          updateObject(object.id, {
-            geometry: {
-              ...object.geometry,
-              x: newX,
-              y: newY,
-            },
-          });
-        }
+        moveObjects(idsToMove, dx / scale, dy / scale);
       },
       onDoubleClick: (state) => {
         // Prevent event from bubbling up to create new objects if applicable
         state.event.stopPropagation();
         if (object.type === 'box' || object.type === 'text' || object.type === 'arrow') {
-          setIsEditing(true);
+          setEditingObject(object.id);
         }
       },
     },
@@ -334,25 +334,9 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
             case 'arrow':
               return <ArrowShape object={visibleObject} />;
             case 'text':
-              return (
-                <>
-                  <TextShape object={visibleObject} />
-                  {!object.text && !isEditing && (
-                    <text
-                      x={object.geometry.x}
-                      y={object.geometry.y}
-                      fill="#52525b"
-                      fontSize={12}
-                      fontStyle="italic"
-                      dy="2em"
-                    >
-                      Double click to edit
-                    </text>
-                  )}
-                </>
-              );
+              return <TextShape object={visibleObject} isEditing={isEditing} />;
             case 'annotation':
-              return <TextShape object={visibleObject} />;
+              return <TextShape object={visibleObject} isEditing={isEditing} />;
             default:
               return null;
           }
@@ -389,35 +373,49 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       animate={{ opacity }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      {...(bind() as any)}
+      {...(isEditing ? {} : (bind() as Record<string, unknown>))}
       style={{ cursor: isEditing ? 'text' : 'move' }}
     >
       {renderShape()}
 
       {isEditing && (
-        <foreignObject 
-          x={editX} 
-          y={editY} 
-          width={editWidth} 
-          height={editHeight}
+        <foreignObject
+          x={object.type === 'box' ? x : editX - 50}
+          y={object.type === 'box' ? y : editY - 10}
+          width={object.type === 'box' ? width : editWidth + 100}
+          height={object.type === 'box' ? height : editHeight + 80}
           style={{ pointerEvents: 'auto', cursor: 'text' }}
         >
-          <div className={`w-full h-full flex items-center justify-center ring-1 ring-blue-500/50 ${object.type === 'arrow' ? 'bg-zinc-900/90 rounded' : 'bg-zinc-800/80'}`}>
+          <div
+            className={cn(
+              'w-full h-full flex justify-center p-2',
+              object.type === 'box' ? 'items-center' : 'items-start',
+              'transition-all duration-200',
+            )}
+          >
             <div
               ref={editRef}
               contentEditable
               suppressContentEditableWarning
               tabIndex={0}
-              className="w-full text-white p-2 border-none outline-none overflow-hidden text-center cursor-text"
-              style={{ 
-                fontSize: object.style.fontSize || (object.type === 'arrow' ? 12 : 14),
-                fontFamily: 'sans-serif',
+              className={cn(
+                'w-full border-none outline-none overflow-hidden text-center cursor-text',
+                object.type === 'box'
+                  ? 'text-white p-1'
+                  : 'text-white p-3 bg-zinc-900/90 rounded-lg shadow-2xl backdrop-blur-sm ring-2 ring-blue-500/50 shadow-blue-500/20',
+              )}
+              style={{
+                fontSize:
+                  object.style.fontSize ||
+                  (object.type === 'arrow' ? 12 : object.type === 'box' ? 14 : 24),
+                fontFamily: 'Outfit, Inter, sans-serif',
                 wordBreak: 'break-word',
                 whiteSpace: 'pre-wrap',
+                minWidth: '120px',
               }}
               onBlur={(e) => {
                 updateObject(object.id, { text: e.currentTarget.innerText });
-                setIsEditing(false);
+                setEditingObject(null);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -436,14 +434,14 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         <>
           {/* Selection ring */}
           {object.type === 'arrow' && object.geometry.points ? (
-             <path
-               d={`M ${object.geometry.points.map(p => `${p.x},${p.y}`).join(' L ')}`}
-               fill="none"
-               stroke="#3b82f6"
-               strokeWidth="4"
-               strokeOpacity="0.2"
-               pointerEvents="none"
-             />
+            <path
+              d={`M ${object.geometry.points.map((p) => `${p.x},${p.y}`).join(' L ')}`}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="4"
+              strokeOpacity="0.2"
+              pointerEvents="none"
+            />
           ) : (
             <rect
               x={x - 2}

@@ -18,11 +18,14 @@ interface WhiteboardActions {
   setZoom: (zoom: number) => void;
 
   selectObject: (id: string, multi?: boolean) => void;
+  selectObjects: (ids: string[]) => void;
   clearSelection: () => void;
   setTool: (tool: Tool) => void;
+  deleteObjects: (ids: string[]) => void;
+  setEditingObject: (id: string | null) => void;
+  moveObjects: (ids: string[], dx: number, dy: number) => void;
 }
 
-// Helper to generate UUIDs if `uuid` package isn't available, but I'll add a simple random string generator
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) => ({
@@ -35,6 +38,7 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
     zoom: 1,
     pan: { x: 0, y: 0 },
     selectedObjectIds: [],
+    editingObjectId: null,
   },
 
   addObject: (obj) => {
@@ -54,16 +58,20 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
       const newObj = { ...obj, ...updates };
       const newObjects = { ...state.objects, [id]: newObj };
 
-      // Update connected arrows if this is a box
       if (newObj.type === 'box') {
         const getAnchorPos = (box: CanvasObject, anchorId: string) => {
           const { x, y, width = 0, height = 0 } = box.geometry;
           switch (anchorId) {
-            case 'n': return { x: x + width / 2, y };
-            case 's': return { x: x + width / 2, y: y + height };
-            case 'e': return { x: x + width, y: y + height / 2 };
-            case 'w': return { x, y: y + height / 2 };
-            default: return { x, y };
+            case 'n':
+              return { x: x + width / 2, y };
+            case 's':
+              return { x: x + width / 2, y: y + height };
+            case 'e':
+              return { x: x + width, y: y + height / 2 };
+            case 'w':
+              return { x, y: y + height / 2 };
+            default:
+              return { x, y };
           }
         };
 
@@ -101,7 +109,17 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
     set((state) => {
       const rest = { ...state.objects };
       delete rest[id];
-      return { objects: rest };
+      const newSelected = state.ui.selectedObjectIds.filter((oid) => oid !== id);
+      return { objects: rest, ui: { ...state.ui, selectedObjectIds: newSelected } };
+    });
+  },
+
+  deleteObjects: (ids) => {
+    set((state) => {
+      const newObjects = { ...state.objects };
+      ids.forEach((id) => delete newObjects[id]);
+      const newSelected = state.ui.selectedObjectIds.filter((oid) => !ids.includes(oid));
+      return { objects: newObjects, ui: { ...state.ui, selectedObjectIds: newSelected } };
     });
   },
 
@@ -135,11 +153,91 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
         }
         return { ui: { ...state.ui, selectedObjectIds: [...currentSelected, id] } };
       }
+
+      // If already selected, don't change selection (allows moving multiple objects)
+      if (currentSelected.includes(id)) return {};
+
       return { ui: { ...state.ui, selectedObjectIds: [id] } };
     });
+  },
+
+  selectObjects: (ids) => {
+    set((state) => ({
+      ui: { ...state.ui, selectedObjectIds: ids },
+    }));
   },
 
   clearSelection: () => set((state) => ({ ui: { ...state.ui, selectedObjectIds: [] } })),
 
   setTool: (tool) => set((state) => ({ ui: { ...state.ui, activeTool: tool } })),
+
+  setEditingObject: (id) => set((state) => ({ ui: { ...state.ui, editingObjectId: id } })),
+
+  moveObjects: (ids, dx, dy) => {
+    set((state) => {
+      const newObjects = { ...state.objects };
+
+      // First pass: move all objects
+      ids.forEach((id) => {
+        const obj = newObjects[id];
+        if (!obj) return;
+
+        if (obj.type === 'arrow' && obj.geometry.points) {
+          const newPoints = obj.geometry.points.map((p) => ({
+            x: p.x + dx,
+            y: p.y + dy,
+          }));
+          newObjects[id] = {
+            ...obj,
+            geometry: { ...obj.geometry, points: newPoints },
+            startConnection: undefined,
+            endConnection: undefined,
+          };
+        } else {
+          newObjects[id] = {
+            ...obj,
+            geometry: {
+              ...obj.geometry,
+              x: obj.geometry.x + dx,
+              y: obj.geometry.y + dy,
+            },
+          };
+        }
+      });
+
+      // Second pass: update any arrows connected to moved boxes
+      // This is a bit expensive but necessary for consistency
+      Object.keys(newObjects).forEach((id) => {
+        // Skip if this object was already moved in the first pass
+        if (ids.includes(id)) return;
+
+        const other = newObjects[id];
+        if (other.type === 'arrow') {
+          let pointsMoved = false;
+          const points = [...(other.geometry.points || [])];
+
+          if (other.startConnection && ids.includes(other.startConnection.objectId)) {
+            points[0] = { x: points[0].x + dx, y: points[0].y + dy };
+            pointsMoved = true;
+          }
+          if (other.endConnection && ids.includes(other.endConnection.objectId)) {
+            points[points.length - 1] = {
+              x: points[points.length - 1].x + dx,
+              y: points[points.length - 1].y + dy,
+            };
+            pointsMoved = true;
+          }
+
+          if (pointsMoved) {
+            newObjects[id] = {
+              ...other,
+              geometry: { ...other.geometry, points },
+            };
+          }
+        }
+      });
+
+      return { objects: newObjects };
+    });
+  },
 }));

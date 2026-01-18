@@ -12,7 +12,6 @@ import {
   Trash2,
 } from 'lucide-react';
 
-
 export const UIOverlay: React.FC = () => {
   const {
     ui,
@@ -24,9 +23,8 @@ export const UIOverlay: React.FC = () => {
     prevStep,
     updateObject,
     deleteObject,
+    deleteObjects,
   } = useWhiteboard();
-
-
 
   const selectedObjects = ui.selectedObjectIds.map((id) => objects[id]).filter(Boolean);
   const singleSelection = selectedObjects.length === 1 ? selectedObjects[0] : null;
@@ -190,6 +188,26 @@ export const UIOverlay: React.FC = () => {
           <div className="bg-zinc-800 p-2 rounded text-xs text-zinc-500">
             ID: {singleSelection.id.slice(0, 8)}
           </div>
+        </div>
+      )}
+
+      {!singleSelection && selectedObjects.length > 1 && (
+        <div className="absolute right-4 top-20 bg-zinc-900 w-64 rounded-lg shadow-md p-4 pointer-events-auto border border-zinc-800 flex flex-col space-y-4 text-zinc-300">
+          <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
+            <span className="font-bold text-sm uppercase text-zinc-500">
+              Multiple Selected ({selectedObjects.length})
+            </span>
+            <button
+              onClick={() => deleteObjects(ui.selectedObjectIds)}
+              className="text-red-500 hover:bg-red-950/30 p-1 rounded flex items-center space-x-2 text-xs"
+            >
+              <Trash2 size={16} />
+              <span>Delete All</span>
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500">
+            You can perform actions on all {selectedObjects.length} selected objects.
+          </p>
         </div>
       )}
     </div>

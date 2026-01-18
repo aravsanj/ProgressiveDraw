@@ -43,6 +43,7 @@ export type WhiteboardUiState = {
   zoom: number;
   pan: { x: number; y: number };
   selectedObjectIds: string[];
+  editingObjectId?: string | null;
 };
 
 export type WhiteboardState = {

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGesture } from '@use-gesture/react';
+import type { CanvasObjectType, Connection } from '../types';
 import { useWhiteboard } from '../store/useWhiteboard';
 import { ObjectRenderer } from './ObjectRenderer';
 import { AnimatePresence } from 'framer-motion';
@@ -8,10 +9,34 @@ export const Canvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [ctrlPressed, setCtrlPressed] = useState(false);
-  const { ui, setPan, setZoom, objects, addObject, updateObject, selectObject, clearSelection, currentStep } =
-    useWhiteboard();
+  const {
+    ui,
+    setPan,
+    setZoom,
+    objects,
+    addObject,
+    updateObject,
+    selectObject,
+    selectObjects,
+    deleteObjects,
+    clearSelection,
+    currentStep,
+    setEditingObject,
+  } = useWhiteboard();
   const [drawingId, setDrawingId] = useState<string | null>(null);
+  const [selectionRect, setSelectionRect] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const pendingDrawRef = useRef<{
+    type: CanvasObjectType;
+    x: number;
+    y: number;
+    startConnection?: Connection;
+  } | null>(null);
 
   const getCanvasCoords = (clientX: number, clientY: number) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -39,24 +64,36 @@ export const Canvas: React.FC = () => {
     window.addEventListener('keyup', handleKeyUp);
 
     const el = containerRef.current;
-    if (el) {
-      const preventAutoscroll = (e: MouseEvent) => {
-        if (e.button === 1) e.preventDefault();
-      };
-      const preventWheelZoom = (e: WheelEvent) => {
-        if (e.ctrlKey) e.preventDefault();
-      };
 
+    const preventAutoscroll = (e: MouseEvent) => {
+      if (e.button === 1) e.preventDefault();
+    };
+    const preventWheelZoom = (e: WheelEvent) => {
+      if (e.ctrlKey) e.preventDefault();
+    };
+    const handleKeyDownGlobal = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDrawingId(null);
+        startPosRef.current = null;
+        pendingDrawRef.current = null;
+      }
+
+      if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
+      ) {
+        const { selectedObjectIds } = useWhiteboard.getState().ui;
+        if (selectedObjectIds.length > 0) {
+          deleteObjects(selectedObjectIds);
+        }
+      }
+    };
+
+    if (el) {
       el.addEventListener('mousedown', preventAutoscroll, { passive: false });
       el.addEventListener('wheel', preventWheelZoom, { passive: false });
-
-      return () => {
-        el.removeEventListener('mousedown', preventAutoscroll);
-        el.removeEventListener('wheel', preventWheelZoom);
-        window.removeEventListener('keydown', handleKeyDown);
-        window.removeEventListener('keyup', handleKeyUp);
-      };
     }
+    window.addEventListener('keydown', handleKeyDownGlobal);
 
     return () => {
       document.removeEventListener('gesturestart', preventGestures);
@@ -64,8 +101,13 @@ export const Canvas: React.FC = () => {
       document.removeEventListener('gestureend', preventGestures);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keydown', handleKeyDownGlobal);
+      if (el) {
+        el.removeEventListener('mousedown', preventAutoscroll);
+        el.removeEventListener('wheel', preventWheelZoom);
+      }
     };
-  }, []);
+  }, [deleteObjects]);
 
   useGesture(
     {
@@ -77,8 +119,37 @@ export const Canvas: React.FC = () => {
             y: p.y + dy,
           }));
           setIsPanning(active);
+        } else if (!drawingId && pendingDrawRef.current && active) {
+          const { type, x, y, startConnection } = pendingDrawRef.current;
+          const id = addObject({
+            type,
+            geometry: {
+              x,
+              y,
+              width: type === 'box' ? 1 : undefined,
+              height: type === 'box' ? 1 : undefined,
+              points:
+                type === 'arrow'
+                  ? [
+                      { x, y },
+                      { x, y },
+                    ]
+                  : undefined,
+            },
+            style: {
+              stroke: '#e4e4e7',
+              fill: type === 'box' ? 'rgba(255,255,255,0.05)' : undefined,
+              fontSize: type === 'arrow' ? 12 : undefined,
+            },
+            appearStep: currentStep,
+            text: '',
+            startConnection,
+          });
+          setDrawingId(id);
+          selectObject(id);
+          pendingDrawRef.current = null;
         } else if (drawingId && startPosRef.current) {
-          let { x, y } = getCanvasCoords(cx, cy);
+          const { x, y } = getCanvasCoords(cx, cy);
           const obj = objects[drawingId];
           if (!obj) return;
 
@@ -95,50 +166,78 @@ export const Canvas: React.FC = () => {
               },
             });
           } else if (obj.type === 'arrow') {
-            // Snapping logic for arrows
-            const SNAP_THRESHOLD = 25 / ui.zoom;
-            let snappedEnd = { x, y };
-            let endConnection = undefined;
-
-            for (const otherObj of Object.values(objects)) {
-              if (otherObj.type === 'box' && otherObj.id !== drawingId) {
-                const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
-                const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
-                  { id: 'n', x: ox + width / 2, y: oy },
-                  { id: 's', x: ox + width / 2, y: oy + height },
-                  { id: 'e', x: ox + width, y: oy + height / 2 },
-                  { id: 'w', x: ox, y: oy + height / 2 },
-                ];
-
-                for (const anchor of anchors) {
-                  const dist = Math.hypot(anchor.x - x, anchor.y - y);
-                  if (dist < SNAP_THRESHOLD) {
-                    snappedEnd = { x: anchor.x, y: anchor.y };
-                    endConnection = { objectId: otherObj.id, anchorId: anchor.id };
-                    break;
-                  }
-                }
-              }
-              if (endConnection) break;
-            }
-
-            updateObject(drawingId, {
-              geometry: {
-                ...obj.geometry,
-                points: [start, snappedEnd],
-              },
-              endConnection
-            });
+            updateArrowPreview(drawingId, x, y, start);
           }
+        } else if (ui.activeTool === 'select' && startPosRef.current && active) {
+          const { x, y } = getCanvasCoords(cx, cy);
+          const start = startPosRef.current;
+          setSelectionRect({
+            x: Math.min(x, start.x),
+            y: Math.min(y, start.y),
+            width: Math.abs(x - start.x),
+            height: Math.abs(y - start.y),
+          });
         }
 
         if (!active) {
+          if (ui.activeTool === 'select' && selectionRect) {
+            const selectedIds = Object.values(objects)
+              .filter((obj) => {
+                // If it's a box, check if it's within the selection rect
+                if (obj.type === 'box') {
+                  const { x, y, width = 0, height = 0 } = obj.geometry;
+                  // Check if any part of the box is inside the selection rect (intersection)
+                  return (
+                    x < selectionRect.x + selectionRect.width &&
+                    x + width > selectionRect.x &&
+                    y < selectionRect.y + selectionRect.height &&
+                    y + height > selectionRect.y
+                  );
+                }
+                // If it's an arrow, check if its points are within or intersect
+                if (obj.type === 'arrow' && obj.geometry.points) {
+                  return obj.geometry.points.some(
+                    (p) =>
+                      p.x >= selectionRect.x &&
+                      p.x <= selectionRect.x + selectionRect.width &&
+                      p.y >= selectionRect.y &&
+                      p.y <= selectionRect.y + selectionRect.height,
+                  );
+                }
+                // Text
+                if (obj.type === 'text') {
+                  const { x, y } = obj.geometry;
+                  return (
+                    x >= selectionRect.x &&
+                    x <= selectionRect.x + selectionRect.width &&
+                    y >= selectionRect.y &&
+                    y <= selectionRect.y + selectionRect.height
+                  );
+                }
+                return false;
+              })
+              .map((obj) => obj.id);
+            selectObjects(selectedIds);
+          }
+
           setIsPanning(false);
-          setDrawingId(null);
-          startPosRef.current = null;
-          // Switch back to select tool after drawing a box or arrow
-          if (ui.activeTool === 'box' || ui.activeTool === 'arrow') {
-            useWhiteboard.getState().setTool('select');
+          setSelectionRect(null);
+          // Only clear drawingId for non-arrow objects (boxes, etc.)
+          // Arrows stay active until the second click
+          const obj = drawingId ? objects[drawingId] : null;
+          if (!obj || obj.type !== 'arrow') {
+            setDrawingId(null);
+            startPosRef.current = null;
+          }
+          pendingDrawRef.current = null;
+        }
+      },
+      onMove: ({ xy: [cx, cy] }) => {
+        if (drawingId && startPosRef.current) {
+          const obj = objects[drawingId];
+          if (obj && obj.type === 'arrow') {
+            const { x, y } = getCanvasCoords(cx, cy);
+            updateArrowPreview(drawingId, x, y, startPosRef.current);
           }
         }
       },
@@ -159,6 +258,12 @@ export const Canvas: React.FC = () => {
       },
       onPointerDown: ({ event }) => {
         const e = event as PointerEvent;
+        const { editingObjectId } = useWhiteboard.getState().ui;
+
+        if (editingObjectId) {
+          return;
+        }
+
         const target = e.target as HTMLElement;
         const isAnchor = target.getAttribute('data-anchor') === 'true';
         const isResizeHandle = target.getAttribute('data-resize-handle') === 'true';
@@ -167,28 +272,49 @@ export const Canvas: React.FC = () => {
           e.preventDefault();
           (e.target as HTMLElement).setPointerCapture(e.pointerId);
           setIsPanning(true);
+        } else if (drawingId && objects[drawingId]?.type === 'arrow' && e.button === 0) {
+          // Finalize arrow on second click
+          setDrawingId(null);
+          startPosRef.current = null;
+          e.stopPropagation();
         } else if (ui.activeTool === 'select' && e.button === 0 && !isAnchor) {
           // Clear selection when clicking the background
           if (target.getAttribute('data-bg') === 'true' || target === containerRef.current) {
             clearSelection();
+            const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+            startPosRef.current = { x, y };
           }
-        } else if ((ui.activeTool !== 'select' || (isAnchor && !isResizeHandle)) && e.button === 0) {
+        } else if (
+          e.button === 0 &&
+          ((ui.activeTool !== 'select' &&
+            (target.getAttribute('data-bg') === 'true' || target === containerRef.current)) ||
+            (isAnchor && !isResizeHandle))
+        ) {
           let { x, y } = getCanvasCoords(e.clientX, e.clientY);
-          let type = ui.activeTool as any;
+          let type: CanvasObjectType = ui.activeTool as CanvasObjectType;
           let startConnection = undefined;
 
           if (isAnchor && !isResizeHandle) {
             type = 'arrow';
             useWhiteboard.getState().setTool('arrow');
             const objId = target.getAttribute('data-object-id')!;
-            const anchorId = target.getAttribute('data-anchor-id')! as any;
+            const anchorId = target.getAttribute('data-anchor-id')! as Connection['anchorId'];
             const anchorObj = objects[objId];
             if (anchorObj) {
               const { x: ox, y: oy, width = 0, height = 0 } = anchorObj.geometry;
-              if (anchorId === 'n') { x = ox + width / 2; y = oy; }
-              else if (anchorId === 's') { x = ox + width / 2; y = oy + height; }
-              else if (anchorId === 'e') { x = ox + width; y = oy + height / 2; }
-              else if (anchorId === 'w') { x = ox; y = oy + height / 2; }
+              if (anchorId === 'n') {
+                x = ox + width / 2;
+                y = oy;
+              } else if (anchorId === 's') {
+                x = ox + width / 2;
+                y = oy + height;
+              } else if (anchorId === 'e') {
+                x = ox + width;
+                y = oy + height / 2;
+              } else if (anchorId === 'w') {
+                x = ox;
+                y = oy + height / 2;
+              }
               startConnection = { objectId: objId, anchorId };
             }
           } else if (type === 'arrow') {
@@ -216,32 +342,57 @@ export const Canvas: React.FC = () => {
             }
           }
 
-          const id = addObject({
-            type,
-            geometry: {
-              x,
-              y,
-              width: type === 'box' ? 1 : undefined,
-              height: type === 'box' ? 1 : undefined,
-              points: type === 'arrow' ? [{ x, y }, { x, y }] : undefined,
-            },
-            style: {
-              stroke: '#e4e4e7',
-              fill: type === 'box' ? 'rgba(255,255,255,0.05)' : undefined,
-              fontSize: (type === 'text' || type === 'annotation' || type === 'arrow') ? (type === 'arrow' ? 12 : 24) : undefined,
-            },
-            appearStep: currentStep,
-            text: (type === 'text' || type === 'box' || type === 'arrow') ? '' : undefined,
-            startConnection
-          });
+          if (type === 'arrow') {
+            const id = addObject({
+              type: 'arrow',
+              geometry: {
+                x,
+                y,
+                points: [
+                  { x, y },
+                  { x, y },
+                ],
+              },
+              style: {
+                stroke: '#e4e4e7',
+                fontSize: 12,
+              },
+              appearStep: currentStep,
+              text: '',
+              startConnection,
+            });
+            setDrawingId(id);
+            selectObject(id);
+            startPosRef.current = { x, y };
+          } else if (type === 'box') {
+            pendingDrawRef.current = { type, x, y, startConnection };
+            startPosRef.current = { x, y };
+          } else {
+            const id = addObject({
+              type,
+              geometry: {
+                x,
+                y,
+                width: undefined,
+                height: undefined,
+                points: undefined,
+              },
+              style: {
+                stroke: '#e4e4e7',
+                fill: undefined,
+                fontSize: 24,
+              },
+              appearStep: currentStep,
+              text: type === 'text' ? '' : undefined,
+              startConnection,
+            });
 
-          setDrawingId(id);
-          selectObject(id);
-          startPosRef.current = { x, y };
-
-          // Reset tool to select after adding text
-          if (type === 'text') {
-            useWhiteboard.getState().setTool('select');
+            setDrawingId(id);
+            selectObject(id);
+            if (type === 'text' || type === 'annotation') {
+              setEditingObject(id);
+            }
+            startPosRef.current = { x, y };
           }
         }
       },
@@ -253,18 +404,65 @@ export const Canvas: React.FC = () => {
           // Ignore releasePointerCapture errors
         }
         setIsPanning(false);
+        const obj = drawingId ? objects[drawingId] : null;
+        if (!obj || obj.type !== 'arrow') {
+          setDrawingId(null);
+          startPosRef.current = null;
+        }
+        pendingDrawRef.current = null;
       },
     },
     {
       target: containerRef,
       drag: {
-        filterTaps: true,
-        threshold: 0,
+        filterTaps: false, // Need to catch clicks properly
+        threshold: 5,
         buttons: [1, 4],
       },
       eventOptions: { passive: false },
     },
   );
+
+  const updateArrowPreview = (
+    id: string,
+    x: number,
+    y: number,
+    start: { x: number; y: number },
+  ) => {
+    const SNAP_THRESHOLD = 25 / ui.zoom;
+    let snappedEnd = { x, y };
+    let endConnection = undefined;
+
+    for (const otherObj of Object.values(objects)) {
+      if (otherObj.type === 'box' && otherObj.id !== id) {
+        const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
+        const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
+          { id: 'n', x: ox + width / 2, y: oy },
+          { id: 's', x: ox + width / 2, y: oy + height },
+          { id: 'e', x: ox + width, y: oy + height / 2 },
+          { id: 'w', x: ox, y: oy + height / 2 },
+        ];
+
+        for (const anchor of anchors) {
+          const dist = Math.hypot(anchor.x - x, anchor.y - y);
+          if (dist < SNAP_THRESHOLD) {
+            snappedEnd = { x: anchor.x, y: anchor.y };
+            endConnection = { objectId: otherObj.id, anchorId: anchor.id };
+            break;
+          }
+        }
+      }
+      if (endConnection) break;
+    }
+
+    updateObject(id, {
+      geometry: {
+        ...objects[id].geometry,
+        points: [start, snappedEnd],
+      },
+      endConnection,
+    });
+  };
 
   return (
     <div
@@ -311,6 +509,19 @@ export const Canvas: React.FC = () => {
                 <ObjectRenderer key={obj.id} object={obj} />
               ))}
             </AnimatePresence>
+
+            {selectionRect && (
+              <rect
+                x={selectionRect.x}
+                y={selectionRect.y}
+                width={selectionRect.width}
+                height={selectionRect.height}
+                fill="rgba(59, 130, 246, 0.1)"
+                stroke="rgba(59, 130, 246, 0.5)"
+                strokeWidth={1 / ui.zoom}
+                strokeDasharray={`${4 / ui.zoom},${4 / ui.zoom}`}
+              />
+            )}
           </g>
         </g>
       </svg>
