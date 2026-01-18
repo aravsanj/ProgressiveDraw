@@ -1,4 +1,4 @@
-export type CanvasObjectType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'text' | 'annotation';
+export type CanvasObjectType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'text';
 
 export type Connection = {
   objectId: string;
@@ -23,12 +23,12 @@ export type CanvasObject = {
     fontSize?: number;
   };
 
-  text?: string; // Added specifically for text/annotation objects
+  text?: string; // Added specifically for text objects
 
   appearFrame: number;
   disappearFrame?: number; // defaults to Infinity
 
-  role?: 'core' | 'context' | 'annotation';
+  role?: 'core' | 'context';
 
   startConnection?: Connection;
   endConnection?: Connection;

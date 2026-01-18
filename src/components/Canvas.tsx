@@ -411,7 +411,7 @@ export const Canvas: React.FC = () => {
 
             setDrawingId(id);
             selectObject(id);
-            if (type === 'text' || type === 'annotation') {
+            if (type === 'text') {
               setEditingObject(id);
             }
             startPosRef.current = { x, y };

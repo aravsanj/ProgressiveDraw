@@ -249,15 +249,8 @@ const PointHandle: React.FC<{
 };
 
 export const ObjectRenderer: React.FC<Props> = ({ object }) => {
-  const {
-    currentFrame,
-    ui,
-    selectObject,
-    updateObject,
-    setEditingObject,
-    moveObjects,
-    objects,
-  } = useWhiteboard();
+  const { currentFrame, ui, selectObject, updateObject, setEditingObject, moveObjects, objects } =
+    useWhiteboard();
   const editRef = useRef<HTMLDivElement>(null);
 
   const isEditing = ui.editingObjectId === object.id;
@@ -368,8 +361,6 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               return <LineShape object={visibleObject} />;
             case 'text':
               return <TextShape object={visibleObject} isEditing={isEditing} />;
-            case 'annotation':
-              return <TextShape object={visibleObject} isEditing={isEditing} />;
             default:
               return null;
           }
@@ -451,7 +442,9 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               tabIndex={0}
               className={cn(
                 'w-full border-none outline-none overflow-hidden text-center cursor-text',
-                object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
+                object.type === 'rectangle' ||
+                  object.type === 'diamond' ||
+                  object.type === 'ellipse'
                   ? 'text-white p-1'
                   : 'text-white p-3 bg-zinc-900/90 rounded-lg shadow-2xl backdrop-blur-sm ring-2 ring-blue-500/50 shadow-blue-500/20',
               )}
