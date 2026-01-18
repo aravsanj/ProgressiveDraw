@@ -110,7 +110,11 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
       const rest = { ...state.objects };
       delete rest[id];
       const newSelected = state.ui.selectedObjectIds.filter((oid) => oid !== id);
-      return { objects: rest, ui: { ...state.ui, selectedObjectIds: newSelected } };
+      const newEditingId = state.ui.editingObjectId === id ? null : state.ui.editingObjectId;
+      return {
+        objects: rest,
+        ui: { ...state.ui, selectedObjectIds: newSelected, editingObjectId: newEditingId },
+      };
     });
   },
 
@@ -119,7 +123,14 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
       const newObjects = { ...state.objects };
       ids.forEach((id) => delete newObjects[id]);
       const newSelected = state.ui.selectedObjectIds.filter((oid) => !ids.includes(oid));
-      return { objects: newObjects, ui: { ...state.ui, selectedObjectIds: newSelected } };
+      const newEditingId = ids.includes(state.ui.editingObjectId || '') 
+        ? null 
+        : state.ui.editingObjectId;
+
+      return {
+        objects: newObjects,
+        ui: { ...state.ui, selectedObjectIds: newSelected, editingObjectId: newEditingId },
+      };
     });
   },
 

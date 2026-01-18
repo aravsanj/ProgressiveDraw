@@ -80,7 +80,8 @@ export const Canvas: React.FC = () => {
 
       if (
         (e.key === 'Delete' || e.key === 'Backspace') &&
-        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
+        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) &&
+        !(e.target as HTMLElement).isContentEditable
       ) {
         const { selectedObjectIds } = useWhiteboard.getState().ui;
         if (selectedObjectIds.length > 0) {
