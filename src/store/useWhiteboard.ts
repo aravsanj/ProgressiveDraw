@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { CanvasObject, WhiteboardState, Tool } from '../types';
 
 interface WhiteboardActions {
@@ -24,11 +25,12 @@ interface WhiteboardActions {
   deleteObjects: (ids: string[]) => void;
   setEditingObject: (id: string | null) => void;
   moveObjects: (ids: string[], dx: number, dy: number) => void;
+  loadFromObject: (state: WhiteboardState) => void;
 }
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) => ({
+export const useWhiteboard = create<WhiteboardState & WhiteboardActions>()(persist((set) => ({
   objects: {},
   currentFrame: 0,
   ui: {
@@ -251,4 +253,33 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
       return { objects: newObjects };
     });
   },
-}));
+
+
+  loadFromObject: (state) => {
+    set({
+      objects: state.objects,
+      currentFrame: state.currentFrame || 0,
+      ui: {
+        ...state.ui,
+        // Reset transient UI state
+        editingObjectId: null,
+        selectedObjectIds: [],
+      },
+    });
+  },
+}),
+{
+  name: 'progressivedraw',
+  partialize: (state) => ({
+    objects: state.objects,
+    currentFrame: state.currentFrame,
+    ui: {
+      ...state.ui,
+      // Don't persist selection or transient states
+      selectedObjectIds: [],
+      editingObjectId: null,
+    }
+
+  }),
+}
+));

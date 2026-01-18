@@ -13,6 +13,7 @@ import {
   Diamond,
   Circle,
   Minus,
+  Upload,
 } from 'lucide-react';
 
 export const UIOverlay: React.FC = () => {
@@ -74,6 +75,59 @@ export const UIOverlay: React.FC = () => {
         >
           <Play size={16} className="mr-2 inline" /> Present
         </button>
+        <div className="w-px h-6 bg-zinc-800 mx-1" />
+        <button
+          className="p-2 rounded hover:bg-zinc-800 text-zinc-400"
+          title="Save Drawing"
+          onClick={() => {
+            const state = useWhiteboard.getState();
+            const data = {
+              version: 1,
+              date: Date.now(),
+              data: {
+                objects: state.objects,
+                currentFrame: state.currentFrame,
+                ui: { ...state.ui, selectedObjectIds: [], editingObjectId: null }
+              }
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `drawing-${new Date().toISOString().slice(0, 10)}.prodraw`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          <Upload size={16} className="rotate-180" />
+        </button>
+        <label className="p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer" title="Open Drawing">
+          <Upload size={16} />
+          <input
+            type="file"
+            className="hidden"
+            accept=".prodraw,.json"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                try {
+                  const text = event.target?.result as string;
+                  const json = JSON.parse(text);
+                  // Handle both raw state and wrapped versioned state
+                  const stateToLoad = json.data && json.version ? json.data : json;
+                  useWhiteboard.getState().loadFromObject(stateToLoad);
+                } catch (err) {
+                  console.error('Failed to parse file', err);
+                  alert('Invalid drawing file');
+                }
+              };
+              reader.readAsText(file);
+              e.target.value = ''; // Reset input
+            }}
+          />
+        </label>
       </div>
 
       {/* Left Toolbar: Object Creation */}
