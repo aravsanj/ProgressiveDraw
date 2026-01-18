@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { nanoid } from 'nanoid';
 import type { CanvasObject, WhiteboardState, Tool } from '../types';
 
 interface WhiteboardActions {
@@ -28,8 +29,6 @@ interface WhiteboardActions {
   loadFromObject: (state: WhiteboardState) => void;
 }
 
-const generateId = () => Math.random().toString(36).substr(2, 9);
-
 export const useWhiteboard = create<WhiteboardState & WhiteboardActions>()(persist((set) => ({
   objects: {},
   currentFrame: 0,
@@ -44,7 +43,7 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>()(persi
   },
 
   addObject: (obj) => {
-    const id = generateId();
+    const id = nanoid();
     const newObject: CanvasObject = { ...obj, id };
     set((state) => ({
       objects: { ...state.objects, [id]: newObject },
