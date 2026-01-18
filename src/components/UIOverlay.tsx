@@ -14,6 +14,8 @@ import {
   Circle,
   Minus,
   Upload,
+  Layers,
+  Ungroup,
 } from 'lucide-react';
 
 export const UIOverlay: React.FC = () => {
@@ -28,6 +30,9 @@ export const UIOverlay: React.FC = () => {
     updateObject,
     deleteObject,
     deleteObjects,
+    groupObjects,
+    ungroupObjects,
+    updateObjects,
   } = useWhiteboard();
 
   const selectedObjects = ui.selectedObjectIds.map((id) => objects[id]).filter(Boolean);
@@ -260,6 +265,16 @@ export const UIOverlay: React.FC = () => {
             </div>
           )}
 
+          {singleSelection.type === 'group' && (
+             <button
+               onClick={() => ungroupObjects(singleSelection.id)}
+               className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors mb-4"
+             >
+               <Ungroup size={14} />
+               <span>Ungroup Objects</span>
+             </button>
+          )}
+
           <div className="bg-zinc-800 p-2 rounded text-xs text-zinc-500">
             ID: {singleSelection.id.slice(0, 8)}
           </div>
@@ -283,6 +298,46 @@ export const UIOverlay: React.FC = () => {
           <p className="text-xs text-zinc-500">
             You can perform actions on all {selectedObjects.length} selected objects.
           </p>
+
+          <div className="space-y-2 border-t border-zinc-800 pt-2">
+             <button
+               onClick={() => groupObjects(ui.selectedObjectIds)}
+               className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors"
+             >
+               <Layers size={14} />
+               <span>Group Objects</span>
+             </button>
+
+             <div className="space-y-1">
+                <span className="text-xs font-bold text-zinc-500">Appear Frame</span>
+                <input
+                  type="number"
+                  placeholder="Frame #"
+                  onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!isNaN(val)) {
+                          updateObjects(ui.selectedObjectIds, { appearFrame: val });
+                      }
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm"
+                />
+             </div>
+
+             <div className="space-y-1">
+                <span className="text-xs font-bold text-zinc-500">Disappear Frame</span>
+                <input
+                  type="number"
+                  placeholder="∞ (never)"
+                  onChange={(e) => {
+                      const val = e.target.value ? parseInt(e.target.value) : undefined;
+                      if (e.target.value === '' || !isNaN(val as number)) {
+                          updateObjects(ui.selectedObjectIds, { disappearFrame: val });
+                      }
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm"
+                />
+             </div>
+          </div>
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import { EllipseShape } from './shapes/EllipseShape';
 import { ArrowShape } from './shapes/ArrowShape';
 import { LineShape } from './shapes/LineShape';
 import { TextShape } from './shapes/TextShape';
+import { GroupShape } from './shapes/GroupShape';
 import { useGesture } from '@use-gesture/react';
 import { cn } from '../lib/utils';
 
@@ -286,6 +287,15 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
   const isVisible =
     currentFrame >= object.appearFrame && currentFrame < (object.disappearFrame ?? Infinity);
 
+  // Check parent visibility if this object is part of a group
+  const parentVisible = object.parentId 
+    ? (() => {
+        const parent = objects[object.parentId];
+        if (!parent) return true;
+        return currentFrame >= parent.appearFrame && currentFrame < (parent.disappearFrame ?? Infinity);
+      })()
+    : true;
+
   const isSelected = ui.selectedObjectIds.includes(object.id);
 
   const bind = useGesture(
@@ -300,7 +310,10 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         if (ui.activeTool !== 'arrow' && ui.activeTool !== 'line') {
           event.stopPropagation();
         }
-        selectObject(object.id, e.shiftKey);
+        
+        // If object is part of a group, select the group instead
+        const targetId = object.parentId && objects[object.parentId] ? object.parentId : object.id;
+        selectObject(targetId, e.shiftKey);
       },
       onDrag: ({ delta: [dx, dy], event, buttons, ctrlKey }) => {
         const target = event.target as HTMLElement;
@@ -337,9 +350,9 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
     },
   );
 
-  if (!isVisible && ui.mode === 'present') return null;
+  if ((!isVisible || !parentVisible) && ui.mode === 'present') return null;
 
-  const opacity = isVisible ? 1 : 0.2;
+  const opacity = (isVisible && parentVisible) ? 1 : 0.2;
 
   const renderShape = () => {
     // Hide the primary shape text while editing to avoid overlap
@@ -361,6 +374,8 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               return <LineShape object={visibleObject} />;
             case 'text':
               return <TextShape object={visibleObject} isEditing={isEditing} />;
+            case 'group':
+              return <GroupShape object={visibleObject} />;
             default:
               return null;
           }
@@ -508,7 +523,8 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           {/* Resize handles */}
           {(object.type === 'rectangle' ||
             object.type === 'diamond' ||
-            object.type === 'ellipse') && (
+            object.type === 'ellipse' ||
+            object.type === 'group') && (
             <>
               {/* Edge handles */}
               {['n', 's', 'e', 'w'].map((id) => (

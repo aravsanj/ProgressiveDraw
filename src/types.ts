@@ -1,4 +1,4 @@
-export type CanvasObjectType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'text';
+export type CanvasObjectType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'text' | 'group';
 
 export type Connection = {
   objectId: string;
@@ -8,6 +8,8 @@ export type Connection = {
 export type CanvasObject = {
   id: string;
   type: CanvasObjectType;
+  parentId?: string;
+  children?: string[];
 
   geometry: {
     x: number;

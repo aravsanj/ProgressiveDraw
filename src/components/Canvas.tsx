@@ -88,6 +88,24 @@ export const Canvas: React.FC = () => {
           deleteObjects(selectedObjectIds);
         }
       }
+
+      // Grouping shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        const state = useWhiteboard.getState();
+        const { selectedObjectIds } = state.ui;
+        
+        if (e.shiftKey) {
+             // Ungroup all selected groups
+             const groupsToUngroup = selectedObjectIds.filter(id => state.objects[id]?.type === 'group');
+             groupsToUngroup.forEach(id => state.ungroupObjects(id));
+        } else {
+             // Group selected items
+             if (selectedObjectIds.length > 1) {
+                 state.groupObjects(selectedObjectIds);
+             }
+        }
+      }
     };
 
     if (el) {
@@ -221,7 +239,19 @@ export const Canvas: React.FC = () => {
                 return false;
               })
               .map((obj) => obj.id);
-            selectObjects(selectedIds);
+            
+            // Resolve to parents if applicable
+            const resolvedIds = new Set<string>();
+            selectedIds.forEach((id) => {
+                const obj = objects[id];
+                if (obj.parentId && objects[obj.parentId]) {
+                    resolvedIds.add(obj.parentId);
+                } else {
+                    resolvedIds.add(id);
+                }
+            });
+
+            selectObjects(Array.from(resolvedIds));
           }
 
           setIsPanning(false);
