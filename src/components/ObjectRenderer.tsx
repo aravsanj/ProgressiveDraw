@@ -3,7 +3,10 @@ import { motion } from 'framer-motion';
 import type { CanvasObject } from '../types';
 import { useWhiteboard } from '../store/useWhiteboard';
 import { RectangleShape } from './shapes/RectangleShape';
+import { DiamondShape } from './shapes/DiamondShape';
+import { EllipseShape } from './shapes/EllipseShape';
 import { ArrowShape } from './shapes/ArrowShape';
+import { LineShape } from './shapes/LineShape';
 import { TextShape } from './shapes/TextShape';
 import { useGesture } from '@use-gesture/react';
 import { cn } from '../lib/utils';
@@ -178,7 +181,12 @@ const PointHandle: React.FC<{
         let currentPoint = { ...unsnapped };
 
         for (const otherObj of Object.values(allObjects)) {
-          if (otherObj.type === 'rectangle' && otherObj.id !== object.id) {
+          if (
+            (otherObj.type === 'rectangle' ||
+              otherObj.type === 'diamond' ||
+              otherObj.type === 'ellipse') &&
+            otherObj.id !== object.id
+          ) {
             const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
             const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
               { id: 'n', x: ox + width / 2, y: oy },
@@ -241,11 +249,23 @@ const PointHandle: React.FC<{
 };
 
 export const ObjectRenderer: React.FC<Props> = ({ object }) => {
-  const { currentFrame, ui, selectObject, updateObject, setEditingObject, moveObjects } =
-    useWhiteboard();
+  const {
+    currentFrame,
+    ui,
+    selectObject,
+    updateObject,
+    setEditingObject,
+    moveObjects,
+    objects,
+  } = useWhiteboard();
   const editRef = useRef<HTMLDivElement>(null);
 
   const isEditing = ui.editingObjectId === object.id;
+
+  const isAnyArrowOrLineSelected = ui.selectedObjectIds.some((id) => {
+    const obj = objects[id];
+    return obj && (obj.type === 'arrow' || obj.type === 'line');
+  });
 
   useEffect(() => {
     if (isEditing && editRef.current) {
@@ -284,7 +304,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
         if (ctrlKey || e.button !== 0 || isEditing) return;
 
-        if (ui.activeTool !== 'arrow') {
+        if (ui.activeTool !== 'arrow' && ui.activeTool !== 'line') {
           event.stopPropagation();
         }
         selectObject(object.id, e.shiftKey);
@@ -305,7 +325,14 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       onDoubleClick: (state) => {
         // Prevent event from bubbling up to create new objects if applicable
         state.event.stopPropagation();
-        if (object.type === 'rectangle' || object.type === 'text' || object.type === 'arrow') {
+        if (
+          object.type === 'rectangle' ||
+          object.type === 'diamond' ||
+          object.type === 'ellipse' ||
+          object.type === 'text' ||
+          object.type === 'arrow' ||
+          object.type === 'line'
+        ) {
           setEditingObject(object.id);
         }
       },
@@ -331,8 +358,14 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           switch (object.type) {
             case 'rectangle':
               return <RectangleShape object={visibleObject} />;
+            case 'diamond':
+              return <DiamondShape object={visibleObject} />;
+            case 'ellipse':
+              return <EllipseShape object={visibleObject} />;
             case 'arrow':
               return <ArrowShape object={visibleObject} />;
+            case 'line':
+              return <LineShape object={visibleObject} />;
             case 'text':
               return <TextShape object={visibleObject} isEditing={isEditing} />;
             case 'annotation':
@@ -352,7 +385,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
   let editWidth = width;
   let editHeight = height;
 
-  if (object.type === 'arrow' && object.geometry.points) {
+  if ((object.type === 'arrow' || object.type === 'line') && object.geometry.points) {
     const points = object.geometry.points;
     const p1 = points[0];
     const p2 = points[points.length - 1];
@@ -380,16 +413,34 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
       {isEditing && (
         <foreignObject
-          x={object.type === 'rectangle' ? x : editX - 50}
-          y={object.type === 'rectangle' ? y : editY - 10}
-          width={object.type === 'rectangle' ? width : editWidth + 100}
-          height={object.type === 'rectangle' ? height : editHeight + 80}
+          x={
+            object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
+              ? x
+              : editX - 50
+          }
+          y={
+            object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
+              ? y
+              : editY - 10
+          }
+          width={
+            object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
+              ? width
+              : editWidth + 100
+          }
+          height={
+            object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
+              ? height
+              : editHeight + 80
+          }
           style={{ pointerEvents: 'auto', cursor: 'text' }}
         >
           <div
             className={cn(
               'w-full h-full flex justify-center p-2',
-              object.type === 'rectangle' ? 'items-center' : 'items-start',
+              object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
+                ? 'items-center'
+                : 'items-start',
               'transition-all duration-200',
             )}
           >
@@ -400,14 +451,20 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               tabIndex={0}
               className={cn(
                 'w-full border-none outline-none overflow-hidden text-center cursor-text',
-                object.type === 'rectangle'
+                object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
                   ? 'text-white p-1'
                   : 'text-white p-3 bg-zinc-900/90 rounded-lg shadow-2xl backdrop-blur-sm ring-2 ring-blue-500/50 shadow-blue-500/20',
               )}
               style={{
                 fontSize:
                   object.style.fontSize ||
-                  (object.type === 'arrow' ? 12 : object.type === 'rectangle' ? 14 : 24),
+                  (object.type === 'arrow' || object.type === 'line'
+                    ? 12
+                    : object.type === 'rectangle' ||
+                        object.type === 'diamond' ||
+                        object.type === 'ellipse'
+                      ? 14
+                      : 24),
                 fontFamily: 'Outfit, Inter, sans-serif',
                 wordBreak: 'break-word',
                 whiteSpace: 'pre-wrap',
@@ -433,7 +490,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       {isSelected && !isEditing && (
         <>
           {/* Selection ring */}
-          {object.type === 'arrow' && object.geometry.points ? (
+          {(object.type === 'arrow' || object.type === 'line') && object.geometry.points ? (
             <path
               d={`M ${object.geometry.points.map((p) => `${p.x},${p.y}`).join(' L ')}`}
               fill="none"
@@ -456,7 +513,9 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           )}
 
           {/* Resize handles */}
-          {object.type === 'rectangle' && (
+          {(object.type === 'rectangle' ||
+            object.type === 'diamond' ||
+            object.type === 'ellipse') && (
             <>
               {/* Edge handles */}
               {['n', 's', 'e', 'w'].map((id) => (
@@ -489,7 +548,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           )}
 
           {/* Arrow points handles */}
-          {object.type === 'arrow' && object.geometry.points && (
+          {(object.type === 'arrow' || object.type === 'line') && object.geometry.points && (
             <>
               {object.geometry.points.map((p, i) => (
                 <PointHandle
@@ -509,30 +568,34 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       )}
 
       {/* Anchor points for arrows */}
-      {object.type === 'rectangle' && (isSelected || ui.activeTool === 'arrow') && (
-        <>
-          {[
-            { id: 'n' as const, cx: x + width / 2, cy: y },
-            { id: 's' as const, cx: x + width / 2, cy: y + height },
-            { id: 'e' as const, cx: x + width, cy: y + height / 2 },
-            { id: 'w' as const, cx: x, cy: y + height / 2 },
-          ].map((a) => (
-            <circle
-              key={a.id}
-              cx={a.cx}
-              cy={a.cy}
-              r={ui.activeTool === 'arrow' ? 7 : 5}
-              fill={ui.activeTool === 'arrow' ? '#60a5fa' : '#3b82f6'}
-              stroke="white"
-              strokeWidth={1.5}
-              data-anchor="true"
-              data-object-id={object.id}
-              data-anchor-id={a.id}
-              style={{ cursor: 'pointer', pointerEvents: 'auto' }}
-            />
-          ))}
-        </>
-      )}
+      {(object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse') &&
+        (isSelected ||
+          ui.activeTool === 'arrow' ||
+          ui.activeTool === 'line' ||
+          isAnyArrowOrLineSelected) && (
+          <>
+            {[
+              { id: 'n' as const, cx: x + width / 2, cy: y },
+              { id: 's' as const, cx: x + width / 2, cy: y + height },
+              { id: 'e' as const, cx: x + width, cy: y + height / 2 },
+              { id: 'w' as const, cx: x, cy: y + height / 2 },
+            ].map((a) => (
+              <circle
+                key={a.id}
+                cx={a.cx}
+                cy={a.cy}
+                r={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? 7 : 5}
+                fill={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? '#60a5fa' : '#3b82f6'}
+                stroke="white"
+                strokeWidth={1.5}
+                data-anchor="true"
+                data-object-id={object.id}
+                data-anchor-id={a.id}
+                style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+              />
+            ))}
+          </>
+        )}
     </motion.g>
   );
 };

@@ -126,10 +126,10 @@ export const Canvas: React.FC = () => {
             geometry: {
               x,
               y,
-              width: type === 'rectangle' ? 1 : undefined,
-              height: type === 'rectangle' ? 1 : undefined,
+              width: ['rectangle', 'diamond', 'ellipse'].includes(type) ? 1 : undefined,
+              height: ['rectangle', 'diamond', 'ellipse'].includes(type) ? 1 : undefined,
               points:
-                type === 'arrow'
+                type === 'arrow' || type === 'line'
                   ? [
                       { x, y },
                       { x, y },
@@ -138,8 +138,11 @@ export const Canvas: React.FC = () => {
             },
             style: {
               stroke: '#e4e4e7',
-              fill: type === 'rectangle' ? 'rgba(255,255,255,0.05)' : undefined,
-              fontSize: type === 'arrow' ? 12 : undefined,
+              // Default fill for closed shapes
+              fill: ['rectangle', 'diamond', 'ellipse'].includes(type)
+                ? 'rgba(255,255,255,0.05)'
+                : undefined,
+              fontSize: type === 'arrow' || type === 'line' ? 12 : undefined,
             },
             appearFrame: currentFrame,
             text: '',
@@ -155,7 +158,7 @@ export const Canvas: React.FC = () => {
 
           const start = startPosRef.current;
 
-          if (obj.type === 'rectangle') {
+          if (['rectangle', 'diamond', 'ellipse'].includes(obj.type)) {
             updateObject(drawingId, {
               geometry: {
                 ...obj.geometry,
@@ -165,7 +168,7 @@ export const Canvas: React.FC = () => {
                 y: Math.min(y, start.y),
               },
             });
-          } else if (obj.type === 'arrow') {
+          } else if (obj.type === 'arrow' || obj.type === 'line') {
             updateArrowPreview(drawingId, x, y, start);
           }
         } else if (ui.activeTool === 'select' && startPosRef.current && active) {
@@ -184,9 +187,9 @@ export const Canvas: React.FC = () => {
             const selectedIds = Object.values(objects)
               .filter((obj) => {
                 // If it's a rectangle, check if it's within the selection rect
-                if (obj.type === 'rectangle') {
+                // If it's a closed shape, check intersection
+                if (['rectangle', 'diamond', 'ellipse'].includes(obj.type)) {
                   const { x, y, width = 0, height = 0 } = obj.geometry;
-                  // Check if any part of the rectangle is inside the selection rect (intersection)
                   return (
                     x < selectionRect.x + selectionRect.width &&
                     x + width > selectionRect.x &&
@@ -194,8 +197,8 @@ export const Canvas: React.FC = () => {
                     y + height > selectionRect.y
                   );
                 }
-                // If it's an arrow, check if its points are within or intersect
-                if (obj.type === 'arrow' && obj.geometry.points) {
+                // If it's an arrow or line, check points
+                if ((obj.type === 'arrow' || obj.type === 'line') && obj.geometry.points) {
                   return obj.geometry.points.some(
                     (p) =>
                       p.x >= selectionRect.x &&
@@ -222,10 +225,10 @@ export const Canvas: React.FC = () => {
 
           setIsPanning(false);
           setSelectionRect(null);
-          // Only clear drawingId for non-arrow objects (rectangles, etc.)
-          // Arrows stay active until the second click
+          // Only clear drawingId for non-connector objects
+          // Arrows/lines stay active until the second click
           const obj = drawingId ? objects[drawingId] : null;
-          if (!obj || obj.type !== 'arrow') {
+          if (!obj || (obj.type !== 'arrow' && obj.type !== 'line')) {
             setDrawingId(null);
             startPosRef.current = null;
           }
@@ -235,7 +238,7 @@ export const Canvas: React.FC = () => {
       onMove: ({ xy: [cx, cy] }) => {
         if (drawingId && startPosRef.current) {
           const obj = objects[drawingId];
-          if (obj && obj.type === 'arrow') {
+          if (obj && (obj.type === 'arrow' || obj.type === 'line')) {
             const { x, y } = getCanvasCoords(cx, cy);
             updateArrowPreview(drawingId, x, y, startPosRef.current);
           }
@@ -272,8 +275,13 @@ export const Canvas: React.FC = () => {
           e.preventDefault();
           (e.target as HTMLElement).setPointerCapture(e.pointerId);
           setIsPanning(true);
-        } else if (drawingId && objects[drawingId]?.type === 'arrow' && e.button === 0) {
-          // Finalize arrow on second click
+        } else if (
+          drawingId &&
+          objects[drawingId] &&
+          (objects[drawingId].type === 'arrow' || objects[drawingId].type === 'line') &&
+          e.button === 0
+        ) {
+          // Finalize arrow/line on second click
           setDrawingId(null);
           startPosRef.current = null;
           e.stopPropagation();
@@ -295,8 +303,13 @@ export const Canvas: React.FC = () => {
           let startConnection = undefined;
 
           if (isAnchor && !isResizeHandle) {
-            type = 'arrow';
-            useWhiteboard.getState().setTool('arrow');
+            // If we are already in line mode, stay in line mode. Otherwise default to arrow.
+            if (ui.activeTool !== 'line') {
+              type = 'arrow';
+              useWhiteboard.getState().setTool('arrow');
+            } else {
+              type = 'line'; // Keep existing tool
+            }
             const objId = target.getAttribute('data-object-id')!;
             const anchorId = target.getAttribute('data-anchor-id')! as Connection['anchorId'];
             const anchorObj = objects[objId];
@@ -317,10 +330,14 @@ export const Canvas: React.FC = () => {
               }
               startConnection = { objectId: objId, anchorId };
             }
-          } else if (type === 'arrow') {
+          } else if (type === 'arrow' || type === 'line') {
             const SNAP_THRESHOLD = 25 / ui.zoom;
             for (const otherObj of Object.values(objects)) {
-              if (otherObj.type === 'rectangle') {
+              if (
+                otherObj.type === 'rectangle' ||
+                otherObj.type === 'diamond' ||
+                otherObj.type === 'ellipse'
+              ) {
                 const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
                 const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
                   { id: 'n', x: ox + width / 2, y: oy },
@@ -342,9 +359,9 @@ export const Canvas: React.FC = () => {
             }
           }
 
-          if (type === 'arrow') {
+          if (type === 'arrow' || type === 'line') {
             const id = addObject({
-              type: 'arrow',
+              type,
               geometry: {
                 x,
                 y,
@@ -364,7 +381,11 @@ export const Canvas: React.FC = () => {
             setDrawingId(id);
             selectObject(id);
             startPosRef.current = { x, y };
-          } else if (type === 'rectangle') {
+          } else if (
+            type === 'rectangle' ||
+            type === 'diamond' ||
+            type === 'ellipse'
+          ) {
             pendingDrawRef.current = { type, x, y, startConnection };
             startPosRef.current = { x, y };
           } else {
@@ -405,7 +426,7 @@ export const Canvas: React.FC = () => {
         }
         setIsPanning(false);
         const obj = drawingId ? objects[drawingId] : null;
-        if (!obj || obj.type !== 'arrow') {
+        if (!obj || (obj.type !== 'arrow' && obj.type !== 'line')) {
           setDrawingId(null);
           startPosRef.current = null;
         }
@@ -434,7 +455,12 @@ export const Canvas: React.FC = () => {
     let endConnection = undefined;
 
     for (const otherObj of Object.values(objects)) {
-      if (otherObj.type === 'rectangle' && otherObj.id !== id) {
+      if (
+        (otherObj.type === 'rectangle' ||
+          otherObj.type === 'diamond' ||
+          otherObj.type === 'ellipse') &&
+        otherObj.id !== id
+      ) {
         const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
         const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
           { id: 'n', x: ox + width / 2, y: oy },

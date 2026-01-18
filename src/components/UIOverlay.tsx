@@ -10,6 +10,9 @@ import {
   ChevronRight,
   MousePointer,
   Trash2,
+  Diamond,
+  Circle,
+  Minus,
 } from 'lucide-react';
 
 export const UIOverlay: React.FC = () => {
@@ -87,6 +90,24 @@ export const UIOverlay: React.FC = () => {
           label="Rectangle"
           active={ui.activeTool === 'rectangle'}
           onClick={() => setTool('rectangle')}
+        />
+        <ToolButton
+          icon={<Diamond size={20} />}
+          label="Diamond"
+          active={ui.activeTool === 'diamond'}
+          onClick={() => setTool('diamond')}
+        />
+        <ToolButton
+          icon={<Circle size={20} />}
+          label="Ellipse"
+          active={ui.activeTool === 'ellipse'}
+          onClick={() => setTool('ellipse')}
+        />
+        <ToolButton
+          icon={<Minus size={20} />}
+          label="Line"
+          active={ui.activeTool === 'line'}
+          onClick={() => setTool('line')}
         />
         <ToolButton
           icon={<ArrowRight size={20} />}

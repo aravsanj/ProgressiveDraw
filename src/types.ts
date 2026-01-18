@@ -1,4 +1,4 @@
-export type CanvasObjectType = 'rectangle' | 'arrow' | 'text' | 'annotation';
+export type CanvasObjectType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'text' | 'annotation';
 
 export type Connection = {
   objectId: string;
@@ -34,7 +34,8 @@ export type CanvasObject = {
   endConnection?: Connection;
 };
 
-export type Tool = 'select' | 'rectangle' | 'arrow' | 'text';
+export type Tool = 'select' | 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'text';
+
 
 export type WhiteboardUiState = {
   mode: 'edit' | 'present';

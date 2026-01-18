@@ -58,7 +58,7 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
       const newObj = { ...obj, ...updates };
       const newObjects = { ...state.objects, [id]: newObj };
 
-      if (newObj.type === 'rectangle') {
+      if (newObj.type === 'rectangle' || newObj.type === 'diamond' || newObj.type === 'ellipse') {
         const getAnchorPos = (rectangle: CanvasObject, anchorId: string) => {
           const { x, y, width = 0, height = 0 } = rectangle.geometry;
           switch (anchorId) {
@@ -76,7 +76,7 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
         };
 
         Object.values(newObjects).forEach((other) => {
-          if (other.type === 'arrow') {
+          if (other.type === 'arrow' || other.type === 'line') {
             let pointsMoved = false;
             const points = [...(other.geometry.points || [])];
 
@@ -182,7 +182,7 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
         const obj = newObjects[id];
         if (!obj) return;
 
-        if (obj.type === 'arrow' && obj.geometry.points) {
+        if ((obj.type === 'arrow' || obj.type === 'line') && obj.geometry.points) {
           const newPoints = obj.geometry.points.map((p) => ({
             x: p.x + dx,
             y: p.y + dy,
@@ -212,7 +212,7 @@ export const useWhiteboard = create<WhiteboardState & WhiteboardActions>((set) =
         if (ids.includes(id)) return;
 
         const other = newObjects[id];
-        if (other.type === 'arrow') {
+        if (other.type === 'arrow' || other.type === 'line') {
           let pointsMoved = false;
           const points = [...(other.geometry.points || [])];
 
