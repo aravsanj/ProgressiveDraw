@@ -34,7 +34,7 @@ export const TextShape: React.FC<Props> = ({ object, isEditing }) => {
           y={geometry.y}
           fill={style.fill || '#e4e4e7'}
           fontSize={fontSize}
-          fontFamily="sans-serif"
+          fontFamily="Outfit"
           dy="1em"
           style={{
             cursor: 'move',
@@ -52,7 +52,7 @@ export const TextShape: React.FC<Props> = ({ object, isEditing }) => {
             y={geometry.y}
             fill="#52525b"
             fontSize={12}
-            fontFamily="sans-serif"
+            fontFamily="Outfit"
             fontStyle="italic"
             dy="2em"
             style={{

@@ -500,7 +500,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                         object.type === 'ellipse'
                       ? 14
                       : 24),
-                fontFamily: 'Outfit, Inter, sans-serif',
+                fontFamily: 'Outfit, Inter, Outfit',
                 wordBreak: 'break-word',
                 whiteSpace: 'pre-wrap',
                 minWidth: '120px',

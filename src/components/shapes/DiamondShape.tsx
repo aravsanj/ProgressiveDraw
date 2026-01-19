@@ -43,7 +43,7 @@ export const DiamondShape: React.FC<{ object: CanvasObject }> = ({ object }) => 
               textAlign: 'center',
               color: style.stroke || '#e4e4e7',
               fontSize: style.fontSize || 14,
-              fontFamily: 'Outfit, Inter, sans-serif',
+              fontFamily: 'Outfit, Inter, Outfit',
               wordBreak: 'break-word',
               overflow: 'hidden',
             }}

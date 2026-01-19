@@ -70,7 +70,7 @@ export const ArrowShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
               textAlign: 'center',
               color: style.stroke || '#e4e4e7',
               fontSize: style.fontSize || 12,
-              fontFamily: 'sans-serif',
+              fontFamily: 'Outfit',
               background: '#09090b', // Match zinc-950 exactly
               padding: '2px 8px',
               borderRadius: '2px', // Very subtle rounding
