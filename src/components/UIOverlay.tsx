@@ -42,17 +42,17 @@ export const UIOverlay: React.FC = () => {
     return (
       <div className="absolute bottom-6 right-6 flex items-center space-x-4">
         <div className="bg-zinc-900/90 text-zinc-100 rounded-full px-4 py-2 backdrop-blur flex items-center space-x-4 shadow-xl border border-zinc-800">
-          <button onClick={prevFrame} className="hover:text-blue-400">
+          <button onClick={prevFrame} className="hover:text-blue-400 cursor-pointer">
             <ChevronLeft />
           </button>
           <span className="font-mono font-bold">Frame {currentFrame}</span>
-          <button onClick={nextFrame} className="hover:text-blue-400">
+          <button onClick={nextFrame} className="hover:text-blue-400 cursor-pointer">
             <ChevronRight />
           </button>
         </div>
         <button
           onClick={() => setMode('edit')}
-          className="bg-zinc-900/90 p-3 rounded-full shadow hover:bg-zinc-800 text-zinc-100 border border-zinc-700"
+          className="bg-zinc-900/90 p-3 rounded-full shadow hover:bg-zinc-800 text-zinc-100 border border-zinc-700 cursor-pointer"
           title="Exit Presenter Mode"
         >
           <MousePointer size={20} />
@@ -67,7 +67,7 @@ export const UIOverlay: React.FC = () => {
       <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-zinc-900 rounded-lg shadow-md p-1.5 flex items-center space-x-1 pointer-events-auto border border-zinc-800">
         <button
           className={cn(
-            'p-2 rounded hover:bg-zinc-800 text-zinc-400',
+            'p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer',
             ui.mode === 'edit' && 'bg-zinc-800 text-blue-400',
           )}
           onClick={() => setMode('edit')}
@@ -75,14 +75,14 @@ export const UIOverlay: React.FC = () => {
           Edit
         </button>
         <button
-          className="p-2 rounded hover:bg-zinc-800 text-zinc-400"
+          className="p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer"
           onClick={() => setMode('present')}
         >
           <Play size={16} className="mr-2 inline" /> Present
         </button>
         <div className="w-px h-6 bg-zinc-800 mx-1" />
         <button
-          className="p-2 rounded hover:bg-zinc-800 text-zinc-400"
+          className="p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer"
           title="Save Drawing"
           onClick={() => {
             const state = useWhiteboard.getState();
@@ -92,8 +92,8 @@ export const UIOverlay: React.FC = () => {
               data: {
                 objects: state.objects,
                 currentFrame: state.currentFrame,
-                ui: { ...state.ui, selectedObjectIds: [], editingObjectId: null }
-              }
+                ui: { ...state.ui, selectedObjectIds: [], editingObjectId: null },
+              },
             };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -106,7 +106,10 @@ export const UIOverlay: React.FC = () => {
         >
           <Upload size={16} className="rotate-180" />
         </button>
-        <label className="p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer" title="Open Drawing">
+        <label
+          className="p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer"
+          title="Open Drawing"
+        >
           <Upload size={16} />
           <input
             type="file"
@@ -186,7 +189,7 @@ export const UIOverlay: React.FC = () => {
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-zinc-900 rounded-full shadow-lg px-6 py-2 flex items-center space-x-6 pointer-events-auto border border-zinc-800 text-zinc-200">
         <button
           onClick={prevFrame}
-          className="hover:bg-zinc-800 p-2 rounded-full text-zinc-400 hover:text-zinc-100"
+          className="hover:bg-zinc-800 p-2 rounded-full text-zinc-400 hover:text-zinc-100 cursor-pointer"
         >
           <ChevronLeft />
         </button>
@@ -196,7 +199,7 @@ export const UIOverlay: React.FC = () => {
         </div>
         <button
           onClick={nextFrame}
-          className="hover:bg-zinc-800 p-2 rounded-full text-zinc-400 hover:text-zinc-100"
+          className="hover:bg-zinc-800 p-2 rounded-full text-zinc-400 hover:text-zinc-100 cursor-pointer"
         >
           <ChevronRight />
         </button>
@@ -211,7 +214,7 @@ export const UIOverlay: React.FC = () => {
             </span>
             <button
               onClick={() => deleteObject(singleSelection.id)}
-              className="text-red-500 hover:bg-red-950/30 p-1 rounded"
+              className="text-red-500 hover:bg-red-950/30 p-1 rounded cursor-pointer"
             >
               <Trash2 size={16} />
             </button>
@@ -266,13 +269,13 @@ export const UIOverlay: React.FC = () => {
           )}
 
           {singleSelection.type === 'group' && (
-             <button
-               onClick={() => ungroupObjects(singleSelection.id)}
-               className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors mb-4"
-             >
-               <Ungroup size={14} />
-               <span>Ungroup Objects</span>
-             </button>
+            <button
+              onClick={() => ungroupObjects(singleSelection.id)}
+              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors mb-4 cursor-pointer"
+            >
+              <Ungroup size={14} />
+              <span>Ungroup Objects</span>
+            </button>
           )}
 
           <div className="bg-zinc-800 p-2 rounded text-xs text-zinc-500">
@@ -289,7 +292,7 @@ export const UIOverlay: React.FC = () => {
             </span>
             <button
               onClick={() => deleteObjects(ui.selectedObjectIds)}
-              className="text-red-500 hover:bg-red-950/30 p-1 rounded flex items-center space-x-2 text-xs"
+              className="text-red-500 hover:bg-red-950/30 p-1 rounded flex items-center space-x-2 text-xs cursor-pointer"
             >
               <Trash2 size={16} />
               <span>Delete All</span>
@@ -300,43 +303,43 @@ export const UIOverlay: React.FC = () => {
           </p>
 
           <div className="space-y-2 border-t border-zinc-800 pt-2">
-             <button
-               onClick={() => groupObjects(ui.selectedObjectIds)}
-               className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors"
-             >
-               <Layers size={14} />
-               <span>Group Objects</span>
-             </button>
+            <button
+              onClick={() => groupObjects(ui.selectedObjectIds)}
+              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors cursor-pointer"
+            >
+              <Layers size={14} />
+              <span>Group Objects</span>
+            </button>
 
-             <div className="space-y-1">
-                <span className="text-xs font-bold text-zinc-500">Appear Frame</span>
-                <input
-                  type="number"
-                  placeholder="Frame #"
-                  onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (!isNaN(val)) {
-                          updateObjects(ui.selectedObjectIds, { appearFrame: val });
-                      }
-                  }}
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm"
-                />
-             </div>
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-zinc-500">Appear Frame</span>
+              <input
+                type="number"
+                placeholder="Frame #"
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (!isNaN(val)) {
+                    updateObjects(ui.selectedObjectIds, { appearFrame: val });
+                  }
+                }}
+                className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm"
+              />
+            </div>
 
-             <div className="space-y-1">
-                <span className="text-xs font-bold text-zinc-500">Disappear Frame</span>
-                <input
-                  type="number"
-                  placeholder="∞ (never)"
-                  onChange={(e) => {
-                      const val = e.target.value ? parseInt(e.target.value) : undefined;
-                      if (e.target.value === '' || !isNaN(val as number)) {
-                          updateObjects(ui.selectedObjectIds, { disappearFrame: val });
-                      }
-                  }}
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm"
-                />
-             </div>
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-zinc-500">Disappear Frame</span>
+              <input
+                type="number"
+                placeholder="∞ (never)"
+                onChange={(e) => {
+                  const val = e.target.value ? parseInt(e.target.value) : undefined;
+                  if (e.target.value === '' || !isNaN(val as number)) {
+                    updateObjects(ui.selectedObjectIds, { disappearFrame: val });
+                  }
+                }}
+                className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -353,7 +356,7 @@ const ToolButton: React.FC<{
   <button
     onClick={onClick}
     className={cn(
-      'p-2 rounded group relative flex justify-center transition-colors',
+      'p-2 rounded group relative flex justify-center transition-colors cursor-pointer',
       active ? 'bg-zinc-800 text-blue-400' : 'hover:bg-zinc-800 hover:text-zinc-200',
     )}
     title={label}
