@@ -306,17 +306,43 @@ export const Canvas: React.FC = () => {
           }
         }
       },
-      onWheel: ({ event, delta: [, dy], ctrlKey }) => {
-        if (ctrlKey || event.shiftKey) {
+      onWheel: ({ event, delta: [dx, dy], ctrlKey }) => {
+        if (ctrlKey) {
           event.preventDefault();
-          const zoomSensitivity = 0.001;
-          const zoomFactor = -dy * zoomSensitivity;
-          const newZoom = Math.min(Math.max(0.1, ui.zoom + zoomFactor), 5);
-          setZoom(newZoom);
+
+          // Use latest state to avoid stale closure issues during high-frequency events
+          const state = useWhiteboard.getState();
+          const { zoom: oldZoom, pan: oldPan } = state.ui;
+
+          const zoomSensitivity = 0.0015;
+          const factor = Math.exp(-dy * zoomSensitivity);
+          const newZoom = Math.min(Math.max(0.1, oldZoom * factor), 15);
+
+          if (newZoom !== oldZoom) {
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (rect) {
+              const mouseX = event.clientX - rect.left;
+              const mouseY = event.clientY - rect.top;
+
+              const zoomRatio = newZoom / oldZoom;
+
+              // Update both zoom and pan in a single state change to maintain consistency
+              useWhiteboard.setState((state) => ({
+                ui: {
+                  ...state.ui,
+                  zoom: newZoom,
+                  pan: {
+                    x: mouseX - (mouseX - oldPan.x) * zoomRatio,
+                    y: mouseY - (mouseY - oldPan.y) * zoomRatio,
+                  },
+                },
+              }));
+            }
+          }
         } else {
-          // Normal scroll pans vertically
+          // Normal scroll/trackpad pan (handles both axes)
           setPan((p) => ({
-            x: p.x,
+            x: p.x - dx,
             y: p.y - dy,
           }));
         }
@@ -561,8 +587,24 @@ export const Canvas: React.FC = () => {
               : 'cursor-default'
       }`}
     >
-      <div className="absolute top-4 left-4 z-50 bg-zinc-900/80 text-zinc-400 p-2 rounded text-xs pointer-events-none">
-        Zoom: {ui.zoom.toFixed(2)} | Pan: {ui.pan.x.toFixed(0)}, {ui.pan.y.toFixed(0)}
+      <div className="absolute top-4 left-4 z-50 flex items-center gap-2 select-none pointer-events-none">
+        <button
+          onClick={() => setZoom(1)}
+          className="bg-zinc-900/90 hover:bg-zinc-800 text-zinc-100 px-3 py-1.5 rounded-lg text-xs font-medium pointer-events-auto transition-all border border-zinc-800 shadow-lg active:scale-95 cursor-pointer flex items-center gap-1.5"
+          title="Reset Zoom to 100%"
+        >
+          <span className="text-blue-400 font-bold">{Math.round(ui.zoom * 100)}%</span>
+        </button>
+        <button
+          onClick={() => setPan({ x: 0, y: 0 })}
+          className="bg-zinc-900/90 text-zinc-400 px-3 py-1.5 rounded-lg text-[10px] font-mono border border-zinc-800 shadow-lg backdrop-blur-sm pointer-events-auto hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer"
+          title="Reset Pan to (0,0)"
+        >
+          PAN <span className="text-zinc-500 ml-1">X:</span>
+          <span className="text-zinc-200">{ui.pan.x.toFixed(0)}</span>
+          <span className="text-zinc-500 ml-2">Y:</span>
+          <span className="text-zinc-200">{ui.pan.y.toFixed(0)}</span>
+        </button>
       </div>
 
       <svg className="w-full h-full block pointer-events-none">
