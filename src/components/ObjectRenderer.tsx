@@ -45,8 +45,11 @@ const ResizeHandle: React.FC<{
 
   const bind = useGesture(
     {
-      onDrag: ({ delta: [dx, dy], event }) => {
+      onDrag: ({ delta: [dx, dy], event, first }) => {
         event.stopPropagation();
+        if (first) {
+          useWhiteboard.getState().saveHistory();
+        }
         const scale = zoom;
         const { x, y, width = 0, height = 0 } = object.geometry;
         let newX = x;
@@ -164,6 +167,7 @@ const PointHandle: React.FC<{
 
         // Use memo to store the initial point position when drag starts
         if (first) {
+          useWhiteboard.getState().saveHistory();
           memo = { ...object.geometry.points![pointIndex] };
         }
 
@@ -317,12 +321,16 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         const targetId = object.parentId && objects[object.parentId] ? object.parentId : object.id;
         selectObject(targetId, e.shiftKey);
       },
-      onDrag: ({ delta: [dx, dy], event, buttons, ctrlKey }) => {
+      onDrag: ({ delta: [dx, dy], event, buttons, ctrlKey, first }) => {
         const target = event.target as HTMLElement;
         if (target.getAttribute('data-anchor') === 'true') return;
 
         if (buttons !== 1 || ctrlKey || isEditing) return;
         event.stopPropagation();
+
+        if (first) {
+          useWhiteboard.getState().saveHistory();
+        }
 
         const scale = ui.zoom;
         const isSelected = ui.selectedObjectIds.includes(object.id);
@@ -481,7 +489,10 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                 minWidth: '120px',
               }}
               onBlur={(e) => {
-                updateObject(object.id, { text: e.currentTarget.innerText });
+                if (e.currentTarget.innerText !== object.text) {
+                  useWhiteboard.getState().saveHistory();
+                  updateObject(object.id, { text: e.currentTarget.innerText });
+                }
                 setEditingObject(null);
               }}
               onKeyDown={(e) => {

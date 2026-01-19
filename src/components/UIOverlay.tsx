@@ -250,9 +250,12 @@ export const UIOverlay: React.FC = () => {
                 <input
                   type="number"
                   value={singleSelection.appearFrame}
-                  onChange={(e) =>
-                    updateObject(singleSelection.id, { appearFrame: parseInt(e.target.value) || 0 })
-                  }
+                  onChange={(e) => {
+                    useWhiteboard.getState().saveHistory();
+                    updateObject(singleSelection.id, {
+                      appearFrame: parseInt(e.target.value) || 0,
+                    });
+                  }}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200"
                 />
               </div>
@@ -267,11 +270,12 @@ export const UIOverlay: React.FC = () => {
                       ? ''
                       : singleSelection.disappearFrame
                   }
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    useWhiteboard.getState().saveHistory();
                     updateObject(singleSelection.id, {
                       disappearFrame: e.target.value ? parseInt(e.target.value) : undefined,
-                    })
-                  }
+                    });
+                  }}
                   className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200"
                 />
               </div>
@@ -283,7 +287,10 @@ export const UIOverlay: React.FC = () => {
               <label className="text-xs font-bold text-zinc-500 block">Content</label>
               <textarea
                 value={singleSelection.text}
-                onChange={(e) => updateObject(singleSelection.id, { text: e.target.value })}
+                onChange={(e) => {
+                  useWhiteboard.getState().saveHistory();
+                  updateObject(singleSelection.id, { text: e.target.value });
+                }}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm text-zinc-200"
                 rows={3}
               />
@@ -341,6 +348,7 @@ export const UIOverlay: React.FC = () => {
                 onChange={(e) => {
                   const val = parseInt(e.target.value);
                   if (!isNaN(val)) {
+                    useWhiteboard.getState().saveHistory();
                     updateObjects(ui.selectedObjectIds, { appearFrame: val });
                   }
                 }}
@@ -356,6 +364,7 @@ export const UIOverlay: React.FC = () => {
                 onChange={(e) => {
                   const val = e.target.value ? parseInt(e.target.value) : undefined;
                   if (e.target.value === '' || !isNaN(val as number)) {
+                    useWhiteboard.getState().saveHistory();
                     updateObjects(ui.selectedObjectIds, { disappearFrame: val });
                   }
                 }}

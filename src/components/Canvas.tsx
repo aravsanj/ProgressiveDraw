@@ -100,6 +100,24 @@ export const Canvas: React.FC = () => {
         }
       }
 
+      // Undo/Redo shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          // Redo (Cmd+Shift+Z)
+          e.preventDefault();
+          useWhiteboard.getState().redo();
+        } else {
+          // Undo (Cmd+Z)
+          e.preventDefault();
+          useWhiteboard.getState().undo();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        // Redo (Ctrl+Y)
+        e.preventDefault();
+        useWhiteboard.getState().redo();
+      }
+
       // Grouping shortcuts
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
         e.preventDefault();
