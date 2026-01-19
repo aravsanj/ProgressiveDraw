@@ -27,6 +27,7 @@ export const UIOverlay: React.FC = () => {
     setTool,
     nextFrame,
     prevFrame,
+    setFrame,
     updateObject,
     deleteObject,
     deleteObjects,
@@ -45,7 +46,20 @@ export const UIOverlay: React.FC = () => {
           <button onClick={prevFrame} className="hover:text-blue-400 cursor-pointer">
             <ChevronLeft />
           </button>
-          <span className="font-mono font-bold">Frame {currentFrame}</span>
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold leading-none mb-1">
+              Frame
+            </span>
+            <input
+              type="text"
+              value={currentFrame}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                setFrame(val === '' ? 0 : parseInt(val));
+              }}
+              className="text-sm font-mono font-bold bg-transparent border-b border-zinc-800 hover:border-zinc-600 focus:border-blue-500/50 text-center w-12 focus:outline-none transition-colors rounded-sm cursor-text py-0.5"
+            />
+          </div>
           <button onClick={nextFrame} className="hover:text-blue-400 cursor-pointer">
             <ChevronRight />
           </button>
@@ -193,9 +207,17 @@ export const UIOverlay: React.FC = () => {
         >
           <ChevronLeft />
         </button>
-        <div className="text-center">
+        <div className="text-center group">
           <div className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Frame</div>
-          <div className="text-xl font-bold font-mono leading-none">{currentFrame}</div>
+          <input
+            type="text"
+            value={currentFrame}
+            onChange={(e) => {
+              const val = e.target.value.replace(/[^0-9]/g, '');
+              setFrame(val === '' ? 0 : parseInt(val));
+            }}
+            className="text-xl font-bold font-mono leading-none bg-transparent border-b border-zinc-800 hover:border-zinc-600 focus:border-blue-500/50 text-center w-20 focus:outline-none transition-colors rounded-sm cursor-text py-1"
+          />
         </div>
         <button
           onClick={nextFrame}
