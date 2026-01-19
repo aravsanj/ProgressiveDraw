@@ -320,28 +320,51 @@ export const useWhiteboard = create<
       },
 
       deleteObject: (id) => {
-        set((state) => {
-          const rest = { ...state.objects };
-          delete rest[id];
-          const newSelected = state.ui.selectedObjectIds.filter((oid) => oid !== id);
-          const newEditingId = state.ui.editingObjectId === id ? null : state.ui.editingObjectId;
-          return {
-            past: [...state.past, state.objects],
-            future: [],
-            objects: rest,
-            ui: { ...state.ui, selectedObjectIds: newSelected, editingObjectId: newEditingId },
-          };
-        });
+        get().deleteObjects([id]);
       },
 
       deleteObjects: (ids) => {
         set((state) => {
           const newObjects = { ...state.objects };
-          ids.forEach((id) => delete newObjects[id]);
-          const newSelected = state.ui.selectedObjectIds.filter((oid) => !ids.includes(oid));
-          const newEditingId = ids.includes(state.ui.editingObjectId || '')
-            ? null
-            : state.ui.editingObjectId;
+
+          // Recursively collect all IDs to delete (including children of groups)
+          const collectIdsToDelete = (targetIds: string[], collected = new Set<string>()) => {
+            targetIds.forEach((id) => {
+              if (collected.has(id)) return;
+              collected.add(id);
+
+              const obj = state.objects[id];
+              if (obj?.children) {
+                collectIdsToDelete(obj.children, collected);
+              }
+            });
+            return collected;
+          };
+
+          const idsToDelete = collectIdsToDelete(ids);
+
+          idsToDelete.forEach((id) => {
+            const obj = state.objects[id];
+            
+            // Clean up parent reference if parent is NOT being deleted
+            if (obj?.parentId && newObjects[obj.parentId] && !idsToDelete.has(obj.parentId)) {
+              const parent = newObjects[obj.parentId];
+              if (parent.children) {
+                newObjects[obj.parentId] = {
+                  ...parent,
+                  children: parent.children.filter((cid) => cid !== id),
+                };
+              }
+            }
+
+            delete newObjects[id];
+          });
+
+          const newSelected = state.ui.selectedObjectIds.filter((oid) => !idsToDelete.has(oid));
+          const newEditingId =
+            state.ui.editingObjectId && idsToDelete.has(state.ui.editingObjectId)
+              ? null
+              : state.ui.editingObjectId;
 
           return {
             past: [...state.past, state.objects],
