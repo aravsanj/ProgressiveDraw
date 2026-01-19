@@ -16,6 +16,8 @@ import {
   Upload,
   Layers,
   Ungroup,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 
 export const UIOverlay: React.FC = () => {
@@ -34,6 +36,10 @@ export const UIOverlay: React.FC = () => {
     groupObjects,
     ungroupObjects,
     updateObjects,
+    undo,
+    redo,
+    setZoom,
+    setPan,
   } = useWhiteboard();
 
   const selectedObjects = ui.selectedObjectIds.map((id) => objects[id]).filter(Boolean);
@@ -197,6 +203,47 @@ export const UIOverlay: React.FC = () => {
           active={ui.activeTool === 'text'}
           onClick={() => setTool('text')}
         />
+      </div>
+
+      {/* Bottom Left: Zoom, Pan & History */}
+      <div className="absolute bottom-6 left-6 flex items-center gap-2 pointer-events-auto select-none">
+        <div className="flex items-center bg-zinc-900 rounded-lg p-1 border border-zinc-800 shadow-lg">
+          <button
+            onClick={() => setZoom(1)}
+            className="hover:bg-zinc-800 text-zinc-100 px-3 py-1.5 rounded-md text-xs font-medium transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+            title="Reset Zoom to 100%"
+          >
+            <span className="text-blue-400 font-bold">{Math.round(ui.zoom * 100)}%</span>
+          </button>
+          <div className="w-px h-4 bg-zinc-800 mx-1" />
+          <button
+            onClick={() => setPan({ x: 0, y: 0 })}
+            className="text-zinc-400 px-2 py-1.5 rounded-md text-[10px] font-mono hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer"
+            title="Reset Pan to (0,0)"
+          >
+            PAN <span className="text-zinc-500 ml-1">X:</span>
+            <span className="text-zinc-200">{ui.pan.x.toFixed(0)}</span>
+            <span className="text-zinc-500 ml-2">Y:</span>
+            <span className="text-zinc-200">{ui.pan.y.toFixed(0)}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1 bg-zinc-900 rounded-lg p-1 border border-zinc-800 shadow-lg">
+          <button
+            onClick={undo}
+            className="p-2 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-all active:scale-95 cursor-pointer"
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 size={18} />
+          </button>
+          <button
+            onClick={redo}
+            className="p-2 rounded-md hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-all active:scale-95 cursor-pointer"
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo2 size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Bottom Center: Frame Navigation */}

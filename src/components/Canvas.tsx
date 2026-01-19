@@ -12,7 +12,6 @@ export const Canvas: React.FC = () => {
   const {
     ui,
     setPan,
-    setZoom,
     objects,
     addObject,
     updateObject,
@@ -587,26 +586,6 @@ export const Canvas: React.FC = () => {
               : 'cursor-default'
       }`}
     >
-      <div className="absolute top-4 left-4 z-50 flex items-center gap-2 select-none pointer-events-none">
-        <button
-          onClick={() => setZoom(1)}
-          className="bg-zinc-900/90 hover:bg-zinc-800 text-zinc-100 px-3 py-1.5 rounded-lg text-xs font-medium pointer-events-auto transition-all border border-zinc-800 shadow-lg active:scale-95 cursor-pointer flex items-center gap-1.5"
-          title="Reset Zoom to 100%"
-        >
-          <span className="text-blue-400 font-bold">{Math.round(ui.zoom * 100)}%</span>
-        </button>
-        <button
-          onClick={() => setPan({ x: 0, y: 0 })}
-          className="bg-zinc-900/90 text-zinc-400 px-3 py-1.5 rounded-lg text-[10px] font-mono border border-zinc-800 shadow-lg backdrop-blur-sm pointer-events-auto hover:bg-zinc-800 transition-all active:scale-95 cursor-pointer"
-          title="Reset Pan to (0,0)"
-        >
-          PAN <span className="text-zinc-500 ml-1">X:</span>
-          <span className="text-zinc-200">{ui.pan.x.toFixed(0)}</span>
-          <span className="text-zinc-500 ml-2">Y:</span>
-          <span className="text-zinc-200">{ui.pan.y.toFixed(0)}</span>
-        </button>
-      </div>
-
       <svg className="w-full h-full block pointer-events-none">
         <g transform={`translate(${ui.pan.x},${ui.pan.y}) scale(${ui.zoom})`}>
           <defs>
