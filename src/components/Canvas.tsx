@@ -814,7 +814,7 @@ export const Canvas: React.FC = () => {
                         cx={x}
                         cy={y}
                         r={10 / ui.zoom}
-                        fill="#3b82f6"
+                        fill="#8b5cf6"
                         stroke="white"
                         strokeWidth={2 / ui.zoom}
                       />

@@ -411,7 +411,7 @@ export const UIOverlay: React.FC = () => {
                         onClick={() => selectObject(child.id)}
                         className="flex items-center gap-2 group/item bg-zinc-950/50 p-1.5 rounded border border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900 transition-colors w-full overflow-hidden cursor-pointer"
                       >
-                        <span className="text-[10px] text-zinc-600 font-mono min-w-[12px]">
+                        <span className="text-[10px] text-violet-500 font-mono min-w-[12px] font-bold">
                           {index + 1}
                         </span>
                         <div className="text-zinc-500" title={child.type}>

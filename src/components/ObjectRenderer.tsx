@@ -687,10 +687,10 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                 key={a.id}
                 cx={a.cx}
                 cy={a.cy}
-                r={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? 7 : 5}
-                fill={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? '#60a5fa' : '#3b82f6'}
-                stroke="white"
-                strokeWidth={1.5}
+                r={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? 6 : 4}
+                fill="#18181b"
+                stroke={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? '#60a5fa' : '#3b82f6'}
+                strokeWidth={2}
                 data-anchor="true"
                 data-object-id={object.id}
                 data-anchor-id={a.id}
