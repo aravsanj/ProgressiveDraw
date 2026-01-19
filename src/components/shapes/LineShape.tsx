@@ -36,11 +36,11 @@ export const LineShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
       />
       {text && (
         <foreignObject
-          x={cx - 60}
-          y={cy - 15}
-          width={120}
-          height={30}
-          style={{ pointerEvents: 'none' }}
+          x={cx - 150}
+          y={cy - 100}
+          width={300}
+          height={200}
+          style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
           <div
             style={{
@@ -49,16 +49,26 @@ export const LineShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              textAlign: 'center',
-              color: style.stroke || '#e4e4e7',
-              fontSize: style.fontSize || 12,
-              fontFamily: 'Outfit',
-              background: '#09090b', // Match zinc-950
-              padding: '2px 8px',
-              borderRadius: '2px',
             }}
           >
-            {text}
+            <div
+              style={{
+                color: style.stroke || '#e4e4e7',
+                fontSize: style.fontSize || 12,
+                fontFamily: 'Outfit',
+                background: '#09090b', // Match zinc-950
+                padding: '4px 8px',
+                borderRadius: '4px',
+                textAlign: 'center',
+                width: 'max-content',
+                maxWidth: '280px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                pointerEvents: 'auto',
+              }}
+            >
+              {text}
+            </div>
           </div>
         </foreignObject>
       )}
