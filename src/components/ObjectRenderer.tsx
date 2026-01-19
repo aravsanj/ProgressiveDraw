@@ -288,11 +288,13 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
     currentFrame >= object.appearFrame && currentFrame < (object.disappearFrame ?? Infinity);
 
   // Check parent visibility if this object is part of a group
-  const parentVisible = object.parentId 
+  const parentVisible = object.parentId
     ? (() => {
         const parent = objects[object.parentId];
         if (!parent) return true;
-        return currentFrame >= parent.appearFrame && currentFrame < (parent.disappearFrame ?? Infinity);
+        return (
+          currentFrame >= parent.appearFrame && currentFrame < (parent.disappearFrame ?? Infinity)
+        );
       })()
     : true;
 
@@ -310,7 +312,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         if (ui.activeTool !== 'arrow' && ui.activeTool !== 'line') {
           event.stopPropagation();
         }
-        
+
         // If object is part of a group, select the group instead
         const targetId = object.parentId && objects[object.parentId] ? object.parentId : object.id;
         selectObject(targetId, e.shiftKey);
@@ -352,7 +354,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
   if ((!isVisible || !parentVisible) && ui.mode === 'present') return null;
 
-  const opacity = (isVisible && parentVisible) ? 1 : 0.2;
+  const opacity = isVisible && parentVisible ? 1 : 0.2;
 
   const renderShape = () => {
     // Hide the primary shape text while editing to avoid overlap
@@ -484,6 +486,9 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
                   e.preventDefault();
                   e.currentTarget.blur();
                 }

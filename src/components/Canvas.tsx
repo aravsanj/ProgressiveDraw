@@ -73,9 +73,20 @@ export const Canvas: React.FC = () => {
     };
     const handleKeyDownGlobal = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        const state = useWhiteboard.getState();
+        if (state.ui.editingObjectId) {
+          // If editing, blur to trigger onBlur save logic
+          (document.activeElement as HTMLElement)?.blur();
+          return;
+        }
+
+        if (drawingId) {
+          deleteObjects([drawingId]);
+        }
         setDrawingId(null);
         startPosRef.current = null;
         pendingDrawRef.current = null;
+        clearSelection();
       }
 
       if (
@@ -94,16 +105,18 @@ export const Canvas: React.FC = () => {
         e.preventDefault();
         const state = useWhiteboard.getState();
         const { selectedObjectIds } = state.ui;
-        
+
         if (e.shiftKey) {
-             // Ungroup all selected groups
-             const groupsToUngroup = selectedObjectIds.filter(id => state.objects[id]?.type === 'group');
-             groupsToUngroup.forEach(id => state.ungroupObjects(id));
+          // Ungroup all selected groups
+          const groupsToUngroup = selectedObjectIds.filter(
+            (id) => state.objects[id]?.type === 'group',
+          );
+          groupsToUngroup.forEach((id) => state.ungroupObjects(id));
         } else {
-             // Group selected items
-             if (selectedObjectIds.length > 1) {
-                 state.groupObjects(selectedObjectIds);
-             }
+          // Group selected items
+          if (selectedObjectIds.length > 1) {
+            state.groupObjects(selectedObjectIds);
+          }
         }
       }
     };
@@ -126,7 +139,7 @@ export const Canvas: React.FC = () => {
         el.removeEventListener('wheel', preventWheelZoom);
       }
     };
-  }, [deleteObjects]);
+  }, [deleteObjects, drawingId, clearSelection, setEditingObject]);
 
   useGesture(
     {
@@ -239,16 +252,16 @@ export const Canvas: React.FC = () => {
                 return false;
               })
               .map((obj) => obj.id);
-            
+
             // Resolve to parents if applicable
             const resolvedIds = new Set<string>();
             selectedIds.forEach((id) => {
-                const obj = objects[id];
-                if (obj.parentId && objects[obj.parentId]) {
-                    resolvedIds.add(obj.parentId);
-                } else {
-                    resolvedIds.add(id);
-                }
+              const obj = objects[id];
+              if (obj.parentId && objects[obj.parentId]) {
+                resolvedIds.add(obj.parentId);
+              } else {
+                resolvedIds.add(id);
+              }
             });
 
             selectObjects(Array.from(resolvedIds));
@@ -412,11 +425,7 @@ export const Canvas: React.FC = () => {
             setDrawingId(id);
             selectObject(id);
             startPosRef.current = { x, y };
-          } else if (
-            type === 'rectangle' ||
-            type === 'diamond' ||
-            type === 'ellipse'
-          ) {
+          } else if (type === 'rectangle' || type === 'diamond' || type === 'ellipse') {
             pendingDrawRef.current = { type, x, y, startConnection };
             startPosRef.current = { x, y };
           } else {
