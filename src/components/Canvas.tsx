@@ -492,21 +492,20 @@ export const Canvas: React.FC = () => {
             startPosRef.current = { x, y };
           }
         } else if (
-          useWhiteboard.getState().ui.selectedObjectIds.length > 0 &&
-          ui.activeTool !== 'select' &&
-          e.button === 0 &&
-          (target.getAttribute('data-bg') === 'true' || target === containerRef.current)
-        ) {
-          // If we have a tool selected but there are elements selected,
-          // clicking outside should only deselect
-          clearSelection();
-          return;
-        } else if (
           e.button === 0 &&
           ((ui.activeTool !== 'select' &&
             (target.getAttribute('data-bg') === 'true' || target === containerRef.current)) ||
             (isAnchor && !isResizeHandle))
         ) {
+          const isBg = target.getAttribute('data-bg') === 'true' || target === containerRef.current;
+          if (useWhiteboard.getState().ui.selectedObjectIds.length > 0 && isBg) {
+            clearSelection();
+            // For arrow and line, we want to deselect first, then click again to draw
+            if (ui.activeTool === 'arrow' || ui.activeTool === 'line') {
+              return;
+            }
+          }
+
           let { x, y } = getCanvasCoords(e.clientX, e.clientY);
           let type: CanvasObjectType = ui.activeTool as CanvasObjectType;
           let startConnection = undefined;
