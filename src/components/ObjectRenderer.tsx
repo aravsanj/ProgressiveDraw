@@ -323,12 +323,12 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
   const bind = useGesture(
     {
-      onPointerDown: ({ event, ctrlKey }) => {
+      onPointerDown: ({ event }) => {
         const e = event as unknown as PointerEvent;
         const target = e.target as HTMLElement;
         if (target.getAttribute('data-anchor') === 'true') return;
 
-        if (ctrlKey || e.button !== 0 || isEditing) return;
+        if (e.button !== 0 || isEditing) return;
 
         if (ui.activeTool !== 'arrow' && ui.activeTool !== 'line') {
           event.stopPropagation();
@@ -336,7 +336,67 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
         // If object is part of a group, select the group instead
         const targetId = object.parentId && objects[object.parentId] ? object.parentId : object.id;
-        selectObject(targetId, e.shiftKey);
+        const targetObj = objects[targetId];
+
+        if (e.shiftKey && ui.selectedObjectIds.length > 0 && targetObj) {
+          const lastId = ui.selectedObjectIds[ui.selectedObjectIds.length - 1];
+          const lastObj = objects[lastId];
+
+          if (lastObj) {
+            // Calculate union bounding box of the last selected object and the clicked object
+            const getBounds = (o: CanvasObject) => {
+              if (o.geometry.points) {
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                o.geometry.points.forEach(p => {
+                  minX = Math.min(minX, p.x);
+                  minY = Math.min(minY, p.y);
+                  maxX = Math.max(maxX, p.x);
+                  maxY = Math.max(maxY, p.y);
+                });
+                return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+              }
+              const { x, y, width = 0, height = 0 } = o.geometry;
+              return { x, y, width, height };
+            };
+
+            const b1 = getBounds(lastObj);
+            const b2 = getBounds(targetObj);
+
+            const selectionRect = {
+              x: Math.min(b1.x, b2.x),
+              y: Math.min(b1.y, b2.y),
+              width: Math.max(b1.x + b1.width, b2.x + b2.width) - Math.min(b1.x, b2.x),
+              height: Math.max(b1.y + b1.height, b2.y + b2.height) - Math.min(b1.y, b2.y),
+            };
+
+            // Find all objects intersecting this rect
+            const newSelectedIds = Object.values(objects)
+              .filter((obj) => {
+                // Skip if not visible/selectable (simplified check)
+                 if (obj.parentId) return false; // We'll select parents instead
+
+                const b = getBounds(obj);
+                // Rect intersection check
+                return (
+                   b.x < selectionRect.x + selectionRect.width &&
+                   b.x + b.width > selectionRect.x &&
+                   b.y < selectionRect.y + selectionRect.height &&
+                   b.y + b.height > selectionRect.y
+                );
+              })
+              .map(o => o.id);
+            
+            // Ensure the explicitly clicked one and anchor are included (they should be by geom check)
+            // But handle groups: parentIds might be needed if children matched? 
+            // The filter above skips objects with parents, so we only select top-level items.
+            // This is consistent with canvas drags.
+
+            useWhiteboard.getState().selectObjects(newSelectedIds);
+            return;
+          }
+        }
+        
+        selectObject(targetId, e.ctrlKey || e.metaKey);
       },
       onDrag: ({ delta: [dx, dy], event, buttons, ctrlKey, first }) => {
         const target = event.target as HTMLElement;

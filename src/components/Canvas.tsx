@@ -253,6 +253,21 @@ export const Canvas: React.FC = () => {
           // but we already checked !isContentEditable, so it should be fine.
         }
       }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        if (
+          !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) &&
+          !(e.target as HTMLElement).isContentEditable
+        ) {
+          e.preventDefault();
+          const state = useWhiteboard.getState();
+          // Select all top-level objects (not children of groups)
+          const allTopLevelIds = Object.values(state.objects)
+            .filter((o) => !o.parentId)
+            .map((o) => o.id);
+          state.selectObjects(allTopLevelIds);
+        }
+      }
     };
 
     if (el) {
