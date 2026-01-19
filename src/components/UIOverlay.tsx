@@ -38,6 +38,7 @@ export const UIOverlay: React.FC = () => {
     updateObjects,
     undo,
     redo,
+    selectObject,
     setZoom,
     setPan,
   } = useWhiteboard();
@@ -344,19 +345,57 @@ export const UIOverlay: React.FC = () => {
             </div>
           )}
 
-          {singleSelection.type === 'group' && (
-            <button
-              onClick={() => ungroupObjects(singleSelection.id)}
-              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors mb-4 cursor-pointer"
-            >
-              <Ungroup size={14} />
-              <span>Ungroup Objects</span>
-            </button>
-          )}
-
           <div className="bg-zinc-800 p-2 rounded text-xs text-zinc-500">
             ID: {singleSelection.id.slice(0, 8)}
           </div>
+
+          {singleSelection.type === 'group' && (
+            <>
+              <button
+                onClick={() => ungroupObjects(singleSelection.id)}
+                className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors cursor-pointer"
+              >
+                <Ungroup size={14} />
+                <span>Ungroup Objects</span>
+              </button>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-zinc-500 block">Group Content</label>
+                <div className="space-y-1 max-h-60 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+                  {singleSelection.children?.map((childId, index) => {
+                    const child = objects[childId];
+                    if (!child) return null;
+                    
+                    let IconComponent = Square;
+                    if (child.type === 'diamond') IconComponent = Diamond;
+                    else if (child.type === 'ellipse') IconComponent = Circle;
+                    else if (child.type === 'arrow') IconComponent = ArrowRight;
+                    else if (child.type === 'line') IconComponent = Minus;
+                    else if (child.type === 'text') IconComponent = Type;
+                    else if (child.type === 'group') IconComponent = Layers;
+
+                    return (
+                      <div 
+                        key={child.id} 
+                        onClick={() => selectObject(child.id)}
+                        className="flex items-center gap-2 group/item bg-zinc-950/50 p-1.5 rounded border border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900 transition-colors w-full overflow-hidden cursor-pointer"
+                      >
+                        <span className="text-[10px] text-zinc-600 font-mono min-w-[12px]">
+                          {index + 1}
+                        </span>
+                        <div className="text-zinc-500" title={child.type}>
+                          <IconComponent size={12} />
+                        </div>
+                        <span className="flex-1 text-xs text-zinc-300 truncate" title={child.text || child.type}>
+                           {child.text || child.type}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

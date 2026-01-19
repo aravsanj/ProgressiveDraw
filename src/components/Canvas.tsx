@@ -748,6 +748,52 @@ export const Canvas: React.FC = () => {
                 strokeDasharray={`${4 / ui.zoom},${4 / ui.zoom}`}
               />
             )}
+
+            {ui.selectedObjectIds.length === 1 && objects[ui.selectedObjectIds[0]]?.type === 'group' && (
+              <>
+                {objects[ui.selectedObjectIds[0]].children?.map((childId, index) => {
+                  const child = objects[childId];
+                  if (!child) return null;
+
+                  let x = 0;
+                  let y = 0;
+
+                  if (child.geometry.points) {
+                    // Arrow/Line: use start point
+                     x = child.geometry.points[0].x;
+                     y = child.geometry.points[0].y;
+                  } else {
+                     // Shapes: use center
+                     x = child.geometry.x + (child.geometry.width || 0) / 2;
+                     y = child.geometry.y + (child.geometry.height || 0) / 2;
+                  }
+                  
+                  return (
+                    <g key={childId} pointerEvents="none">
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={10 / ui.zoom}
+                        fill="#3b82f6"
+                        stroke="white"
+                        strokeWidth={2 / ui.zoom}
+                      />
+                      <text
+                        x={x}
+                        y={y}
+                        fill="white"
+                        fontSize={12 / ui.zoom}
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                      >
+                        {index + 1}
+                      </text>
+                    </g>
+                  );
+                })}
+              </>
+            )}
           </g>
         </g>
       </svg>
