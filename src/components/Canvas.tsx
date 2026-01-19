@@ -380,6 +380,16 @@ export const Canvas: React.FC = () => {
             startPosRef.current = { x, y };
           }
         } else if (
+          useWhiteboard.getState().ui.selectedObjectIds.length > 0 &&
+          ui.activeTool !== 'select' &&
+          e.button === 0 &&
+          (target.getAttribute('data-bg') === 'true' || target === containerRef.current)
+        ) {
+          // If we have a tool selected but there are elements selected,
+          // clicking outside should only deselect
+          clearSelection();
+          return;
+        } else if (
           e.button === 0 &&
           ((ui.activeTool !== 'select' &&
             (target.getAttribute('data-bg') === 'true' || target === containerRef.current)) ||
