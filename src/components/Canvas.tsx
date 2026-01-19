@@ -30,6 +30,8 @@ export const Canvas: React.FC = () => {
     height: number;
   } | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const mousePosRef = useRef<{ x: number; y: number } | null>(null);
+  const isPlacingDuplicatedRef = useRef(false);
   const pendingDrawRef = useRef<{
     type: CanvasObjectType;
     x: number;
@@ -99,6 +101,97 @@ export const Canvas: React.FC = () => {
         }
       }
 
+      // Copy/Paste/Duplicate
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) &&
+        !(e.target as HTMLElement).isContentEditable
+      ) {
+        const key = e.key.toLowerCase();
+        if (key === 'c') {
+          e.preventDefault();
+          useWhiteboard.getState().copy();
+        } else if (key === 'v') {
+          e.preventDefault();
+          const newIds = useWhiteboard.getState().paste();
+
+          if (mousePosRef.current && newIds.length > 0) {
+            const state = useWhiteboard.getState();
+            const newObjs = newIds.map((id) => state.objects[id]).filter(Boolean);
+            if (newObjs.length > 0) {
+              let minX = Infinity,
+                minY = Infinity,
+                maxX = -Infinity,
+                maxY = -Infinity;
+
+              newObjs.forEach((obj) => {
+                if (obj.geometry.points) {
+                  obj.geometry.points.forEach((p) => {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x);
+                    maxY = Math.max(maxY, p.y);
+                  });
+                } else {
+                  const { x, y, width = 0, height = 0 } = obj.geometry;
+                  minX = Math.min(minX, x);
+                  minY = Math.min(minY, y);
+                  maxX = Math.max(maxX, x + width);
+                  maxY = Math.max(maxY, y + height);
+                }
+              });
+
+              const centerX = (minX + maxX) / 2;
+              const centerY = (minY + maxY) / 2;
+              const dx = mousePosRef.current.x - centerX;
+              const dy = mousePosRef.current.y - centerY;
+
+              state.moveObjects(newIds, dx, dy);
+            }
+          }
+        } else if (key === 'd') {
+          e.preventDefault();
+          const newIds = useWhiteboard.getState().duplicate();
+          isPlacingDuplicatedRef.current = true;
+
+          // Snap to cursor
+          if (mousePosRef.current && newIds.length > 0) {
+            const state = useWhiteboard.getState();
+            const newObjs = newIds.map((id) => state.objects[id]).filter(Boolean);
+            if (newObjs.length > 0) {
+              let minX = Infinity,
+                minY = Infinity,
+                maxX = -Infinity,
+                maxY = -Infinity;
+
+              newObjs.forEach((obj) => {
+                if (obj.geometry.points) {
+                  obj.geometry.points.forEach((p) => {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x);
+                    maxY = Math.max(maxY, p.y);
+                  });
+                } else {
+                  const { x, y, width = 0, height = 0 } = obj.geometry;
+                  minX = Math.min(minX, x);
+                  minY = Math.min(minY, y);
+                  maxX = Math.max(maxX, x + width);
+                  maxY = Math.max(maxY, y + height);
+                }
+              });
+
+              const centerX = (minX + maxX) / 2;
+              const centerY = (minY + maxY) / 2;
+              const dx = mousePosRef.current.x - centerX;
+              const dy = mousePosRef.current.y - centerY;
+
+              state.moveObjects(newIds, dx, dy);
+            }
+          }
+        }
+      }
+
       // Undo/Redo shortcuts
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         if (e.shiftKey) {
@@ -142,6 +235,7 @@ export const Canvas: React.FC = () => {
       el.addEventListener('mousedown', preventAutoscroll, { passive: false });
       el.addEventListener('wheel', preventWheelZoom, { passive: false });
     }
+    // Note: We use window for keydown to catch events globally
     window.addEventListener('keydown', handleKeyDownGlobal);
 
     return () => {
@@ -297,10 +391,20 @@ export const Canvas: React.FC = () => {
         }
       },
       onMove: ({ xy: [cx, cy] }) => {
+        const { x, y } = getCanvasCoords(cx, cy);
+
+        if (isPlacingDuplicatedRef.current && mousePosRef.current) {
+          const dx = x - mousePosRef.current.x;
+          const dy = y - mousePosRef.current.y;
+          const { selectedObjectIds } = useWhiteboard.getState().ui;
+          useWhiteboard.getState().moveObjects(selectedObjectIds, dx, dy);
+        }
+
+        mousePosRef.current = { x, y };
+
         if (drawingId && startPosRef.current) {
           const obj = objects[drawingId];
           if (obj && (obj.type === 'arrow' || obj.type === 'line')) {
-            const { x, y } = getCanvasCoords(cx, cy);
             updateArrowPreview(drawingId, x, y, startPosRef.current);
           }
         }
@@ -357,6 +461,14 @@ export const Canvas: React.FC = () => {
         const target = e.target as HTMLElement;
         const isAnchor = target.getAttribute('data-anchor') === 'true';
         const isResizeHandle = target.getAttribute('data-resize-handle') === 'true';
+
+        if (isPlacingDuplicatedRef.current && e.button === 0) {
+          e.stopPropagation();
+          e.preventDefault();
+          isPlacingDuplicatedRef.current = false;
+          useWhiteboard.getState().saveHistory();
+          return;
+        }
 
         if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
           e.preventDefault();
