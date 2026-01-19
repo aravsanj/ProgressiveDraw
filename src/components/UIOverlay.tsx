@@ -18,6 +18,9 @@ import {
   Ungroup,
   Undo2,
   Redo2,
+  Pen,
+  Image as ImageIcon,
+  Eraser,
 } from 'lucide-react';
 
 export const UIOverlay: React.FC = () => {
@@ -163,46 +166,74 @@ export const UIOverlay: React.FC = () => {
       <div className="absolute left-4 top-1/2 -translate-y-1/2 bg-zinc-900 rounded-lg shadow-md flex flex-col p-1.5 space-y-1 pointer-events-auto border border-zinc-800 text-zinc-400">
         <ToolButton
           icon={<MousePointer size={20} />}
-          label="Select"
+          label="Select (1, V)"
+          subLabel="1"
           active={ui.activeTool === 'select'}
           onClick={() => setTool('select')}
         />
         <div className="h-px bg-zinc-800 my-1 mx-2" />
         <ToolButton
           icon={<Square size={20} />}
-          label="Rectangle"
+          label="Rectangle (2, R)"
+          subLabel="2"
           active={ui.activeTool === 'rectangle'}
           onClick={() => setTool('rectangle')}
         />
         <ToolButton
           icon={<Diamond size={20} />}
-          label="Diamond"
+          label="Diamond (3, D)"
+          subLabel="3"
           active={ui.activeTool === 'diamond'}
           onClick={() => setTool('diamond')}
         />
         <ToolButton
           icon={<Circle size={20} />}
-          label="Ellipse"
+          label="Ellipse (4, O)"
+          subLabel="4"
           active={ui.activeTool === 'ellipse'}
           onClick={() => setTool('ellipse')}
         />
         <ToolButton
-          icon={<Minus size={20} />}
-          label="Line"
-          active={ui.activeTool === 'line'}
-          onClick={() => setTool('line')}
-        />
-        <ToolButton
           icon={<ArrowRight size={20} />}
-          label="Arrow"
+          label="Arrow (5, A)"
+          subLabel="5"
           active={ui.activeTool === 'arrow'}
           onClick={() => setTool('arrow')}
         />
         <ToolButton
+          icon={<Minus size={20} />}
+          label="Line (6, L)"
+          subLabel="6"
+          active={ui.activeTool === 'line'}
+          onClick={() => setTool('line')}
+        />
+        <ToolButton
+          icon={<Pen size={20} />}
+          label="Freedraw (7, P)"
+          subLabel="7"
+          disabled
+          onClick={() => {}}
+        />
+        <ToolButton
           icon={<Type size={20} />}
-          label="Text"
+          label="Text (8, T)"
+          subLabel="8"
           active={ui.activeTool === 'text'}
           onClick={() => setTool('text')}
+        />
+        <ToolButton
+          icon={<ImageIcon size={20} />}
+          label="Image (9)"
+          subLabel="9"
+          disabled
+          onClick={() => {}}
+        />
+        <ToolButton
+          icon={<Eraser size={20} />}
+          label="Eraser (0, E)"
+          subLabel="0"
+          disabled
+          onClick={() => {}}
         />
       </div>
 
@@ -467,17 +498,29 @@ export const UIOverlay: React.FC = () => {
 const ToolButton: React.FC<{
   icon: React.ReactNode;
   label: string;
+  subLabel?: string;
   active?: boolean;
+  disabled?: boolean;
   onClick: () => void;
-}> = ({ icon, label, active, onClick }) => (
+}> = ({ icon, label, subLabel, active, disabled, onClick }) => (
   <button
-    onClick={onClick}
+    onClick={disabled ? undefined : onClick}
+    disabled={disabled}
     className={cn(
-      'p-2 rounded group relative flex justify-center transition-colors cursor-pointer',
-      active ? 'bg-zinc-800 text-blue-400' : 'hover:bg-zinc-800 hover:text-zinc-200',
+      'p-2 rounded group relative flex justify-center transition-colors',
+      disabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer',
+      !disabled && (active ? 'bg-zinc-800 text-blue-400' : 'hover:bg-zinc-800 hover:text-zinc-200'),
     )}
     title={label}
   >
     {icon}
+    {subLabel && (
+      <span className={cn(
+        "absolute bottom-0.5 right-1 text-[8px] font-bold leading-none pointer-events-none",
+        active ? "text-blue-500" : "text-zinc-500"
+      )}>
+        {subLabel}
+      </span>
+    )}
   </button>
 );

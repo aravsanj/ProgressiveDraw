@@ -229,6 +229,30 @@ export const Canvas: React.FC = () => {
           }
         }
       }
+
+      // Tool shortcuts
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) &&
+        !(e.target as HTMLElement).isContentEditable
+      ) {
+        const key = e.key.toLowerCase();
+        const setTool = useWhiteboard.getState().setTool;
+        
+        if (key === '1' || key === 'v') setTool('select');
+        else if (key === '2' || key === 'r') setTool('rectangle');
+        else if (key === '3' || key === 'd') setTool('diamond');
+        else if (key === '4' || key === 'o') setTool('ellipse');
+        else if (key === '5' || key === 'a') setTool('arrow');
+        else if (key === '6' || key === 'l') setTool('line');
+        else if (key === '8' || key === 't') {
+          setTool('text');
+          // Important: Don't prevent default here if t is pressed, 
+          // but we already checked !isContentEditable, so it should be fine.
+        }
+      }
     };
 
     if (el) {
