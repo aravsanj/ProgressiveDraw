@@ -190,7 +190,14 @@ const PointHandle: React.FC<{
             (otherObj.type === 'rectangle' ||
               otherObj.type === 'diamond' ||
               otherObj.type === 'ellipse') &&
-            otherObj.id !== object.id
+            otherObj.id !== object.id &&
+            // Prevent connecting start to end connection object
+            !(pointIndex === 0 && otherObj.id === object.endConnection?.objectId) &&
+            // Prevent connecting end to start connection object
+            !(
+              pointIndex === points.length - 1 &&
+              otherObj.id === object.startConnection?.objectId
+            )
           ) {
             const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
             const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
@@ -263,6 +270,16 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
   const isAnyArrowOrLineSelected = ui.selectedObjectIds.some((id) => {
     const obj = objects[id];
     return obj && (obj.type === 'arrow' || obj.type === 'line');
+  });
+
+  const isConnectedToSelectedArrow = ui.selectedObjectIds.some((id) => {
+    const obj = objects[id];
+    return (
+      obj &&
+      (obj.type === 'arrow' || obj.type === 'line') &&
+      (obj.startConnection?.objectId === object.id ||
+        obj.endConnection?.objectId === object.id)
+    );
   });
 
   useEffect(() => {
@@ -597,7 +614,8 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         (isSelected ||
           ui.activeTool === 'arrow' ||
           ui.activeTool === 'line' ||
-          isAnyArrowOrLineSelected) && (
+          isAnyArrowOrLineSelected) &&
+        !isConnectedToSelectedArrow && (
           <>
             {[
               { id: 'n' as const, cx: x + width / 2, cy: y },

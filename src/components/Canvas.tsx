@@ -663,7 +663,8 @@ export const Canvas: React.FC = () => {
         (otherObj.type === 'rectangle' ||
           otherObj.type === 'diamond' ||
           otherObj.type === 'ellipse') &&
-        otherObj.id !== id
+        otherObj.id !== id &&
+        otherObj.id !== objects[id]?.startConnection?.objectId
       ) {
         const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
         const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
