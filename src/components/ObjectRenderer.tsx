@@ -16,6 +16,28 @@ interface Props {
   object: CanvasObject;
 }
 
+let measuringDiv: HTMLDivElement | null = null;
+const getTextHeight = (text: string, fontSize: number, width: number) => {
+  if (typeof document === 'undefined') return 0;
+  if (!measuringDiv) {
+    measuringDiv = document.createElement('div');
+    measuringDiv.style.position = 'absolute';
+    measuringDiv.style.visibility = 'hidden';
+    measuringDiv.style.top = '-9999px';
+    measuringDiv.style.left = '-9999px';
+    measuringDiv.style.lineHeight = '1.5';
+    measuringDiv.style.whiteSpace = 'pre-wrap';
+    measuringDiv.style.wordBreak = 'break-word';
+    measuringDiv.style.padding = '0';
+    measuringDiv.style.fontFamily = '"Outfit", sans-serif';
+    document.body.appendChild(measuringDiv);
+  }
+  measuringDiv.style.width = `${width}px`;
+  measuringDiv.style.fontSize = `${fontSize}px`;
+  measuringDiv.innerText = text || ' ';
+  return measuringDiv.scrollHeight || 20;
+};
+
 const ResizeHandle: React.FC<{
   object: CanvasObject;
   handle: string;
@@ -45,32 +67,100 @@ const ResizeHandle: React.FC<{
 
   const bind = useGesture(
     {
-      onDrag: ({ delta: [dx, dy], event, first }) => {
+      onDrag: ({ movement: [mx, my], event, first, memo }) => {
         event.stopPropagation();
+        const scale = zoom;
+
         if (first) {
           useWhiteboard.getState().saveHistory();
+          return {
+            x: object.geometry.x,
+            y: object.geometry.y,
+            width: object.geometry.width || 0,
+            height: object.geometry.height || 0,
+            fontSize: object.style.fontSize || 16,
+          };
         }
-        const scale = zoom;
-        const { x, y, width = 0, height = 0 } = object.geometry;
+
+        const dx = mx / scale;
+        const dy = my / scale;
+        const { x, y, width, height, fontSize } = memo;
+
         let newX = x;
         let newY = y;
         let newWidth = width;
         let newHeight = height;
 
-        if (handle.includes('e')) newWidth += dx / scale;
-        if (handle.includes('s')) newHeight += dy / scale;
+        // Base geometric resize logic
+        if (handle.includes('e')) newWidth = width + dx;
+        if (handle.includes('s')) newHeight = height + dy;
         if (handle.includes('w')) {
-          const deltaX = dx / scale;
-          newX += deltaX;
-          newWidth -= deltaX;
+          newX = x + dx;
+          newWidth = width - dx;
         }
         if (handle.includes('n')) {
-          const deltaY = dy / scale;
-          newY += deltaY;
-          newHeight -= deltaY;
+          newY = y + dy;
+          newHeight = height - dy;
+        }
+
+        const updates: Partial<CanvasObject> = {};
+
+        // Special handling for text: Vector-like scaling vs Reflow
+        if (object.type === 'text') {
+          const isCorner = handle.length === 2;
+          const isVert = handle === 'n' || handle === 's';
+          const isHoriz = handle === 'e' || handle === 'w';
+
+          if (isCorner || isVert) {
+            // UNIFORM VECTOR SCALING
+            let s = 1;
+
+            if (isCorner) {
+              // Dominant axis scaling
+              const targetW = handle.includes('w') ? width - dx : width + dx;
+              const targetH = handle.includes('n') ? height - dy : height + dy;
+
+              const sW = targetW / (width || 1);
+              const sH = targetH / (height || 1);
+
+              // Use the scale factor that represents the larger visual change
+              if (Math.abs(sW - 1) > Math.abs(sH - 1)) {
+                s = sW;
+              } else {
+                s = sH;
+              }
+            } else {
+              // Vertical handle scaling
+              const targetH = handle === 'n' ? height - dy : height + dy;
+              s = targetH / (height || 1);
+            }
+
+            s = Math.max(0.1, s);
+
+            const newFontSize = Math.max(4, fontSize * s);
+            updates.style = { ...object.style, fontSize: newFontSize };
+
+            // Force box dimensions to match the same scale factor (Vector behavior)
+            newWidth = width * s;
+            newHeight = height * s;
+
+            // Recalculate anchors based on new sizes
+            if (handle.includes('w')) newX = x + (width - newWidth);
+            else newX = x;
+
+            if (handle.includes('n')) newY = y + (height - newHeight);
+            else newY = y;
+          } else if (isHoriz) {
+            // HORIZONTAL REFLOW
+            newWidth = Math.max(10, newWidth);
+            newHeight = getTextHeight(object.text || '', fontSize, newWidth);
+            // newX/newWidth are already handled by base logic for 'w'.
+            if (handle === 'w') newX = x + width - newWidth;
+          }
         }
 
         updateObject(object.id, {
+          ...updates,
           geometry: {
             ...object.geometry,
             x: newX,
@@ -79,6 +169,8 @@ const ResizeHandle: React.FC<{
             height: Math.max(10, newHeight),
           },
         });
+
+        return memo;
       },
     },
     {
@@ -280,7 +372,12 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
   useEffect(() => {
     if (isEditing && editRef.current) {
-      // Small timeout to ensure DOM is ready in all browsers/SVG environments
+      // Set initial text only once when starting to edit
+      // We use a property check to avoid resetting if user already typed and a re-render occurred
+      if (editRef.current.innerHTML === '') {
+        editRef.current.innerText = object.text || '';
+      }
+
       const timer = setTimeout(() => {
         if (!editRef.current) return;
         editRef.current.focus();
@@ -298,8 +395,11 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         }
       }, 50);
       return () => clearTimeout(timer);
+    } else if (!isEditing && editRef.current) {
+      // Clear for next session
+      editRef.current.innerHTML = '';
     }
-  }, [isEditing]);
+  }, [isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isVisible =
     currentFrame >= object.appearFrame && currentFrame < (object.disappearFrame ?? Infinity);
@@ -444,8 +544,11 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
   const opacity = isVisible && parentVisible ? 1 : 0.2;
 
   const renderShape = () => {
-    // Hide the primary shape text while editing to avoid overlap
-    const visibleObject = isEditing ? { ...object, text: '' } : object;
+    // Hide the primary shape text while editing to avoid overlap, EXCEPT for arrows/lines where we need it for the gap
+    const visibleObject =
+      isEditing && object.type !== 'arrow' && object.type !== 'line'
+        ? { ...object, text: '' }
+        : object;
 
     return (
       <g style={{ pointerEvents: isEditing ? 'none' : 'auto' }}>
@@ -458,9 +561,9 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
             case 'ellipse':
               return <EllipseShape object={visibleObject} />;
             case 'arrow':
-              return <ArrowShape object={visibleObject} />;
+              return <ArrowShape object={visibleObject} isEditing={isEditing} />;
             case 'line':
-              return <LineShape object={visibleObject} />;
+              return <LineShape object={visibleObject} isEditing={isEditing} />;
             case 'text':
               return <TextShape object={visibleObject} isEditing={isEditing} />;
             case 'group':
@@ -480,19 +583,44 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
   let editWidth = width;
   let editHeight = height;
 
+  // Determine the Center Point and Dimensions for the edit box
   if ((object.type === 'arrow' || object.type === 'line') && object.geometry.points) {
     const points = object.geometry.points;
     const p1 = points[0];
     const p2 = points[points.length - 1];
-    editX = (p1.x + p2.x) / 2 - 50;
-    editY = (p1.y + p2.y) / 2 - 20;
-    editWidth = 100;
-    editHeight = 40;
+
+    // Center point of the line
+    const centerX = (p1.x + p2.x) / 2;
+    const centerY = (p1.y + p2.y) / 2;
+
+    // Calculate arrow length for max width linkage
+    const length = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    const textMaxWidth = Math.max(Math.min(length, 600), 100);
+
+    // Match ArrowShape's foreignObject width
+    editWidth = textMaxWidth + 40;
+    editHeight = 200; // ample space for multi-line
+
+    // Top-left of the edit box
+    editX = centerX - editWidth / 2;
+    editY = centerY - editHeight / 2;
   } else if (object.type === 'text') {
-    editWidth = 200;
-    editHeight = 40;
-    editX = x;
+    editWidth = Math.max(width, 100);
+    editHeight = Math.max(height, 40);
+    editX = x; // Text anchors top-left
     editY = y;
+  } else {
+    // Shapes (Rectangle, Diamond, Ellipse)
+    // We want the edit box to match the shape's bounds + some padding
+    const padding = 20;
+    editWidth = Math.max(width, 20) + padding;
+    editHeight = Math.max(height, 20) + padding;
+
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+
+    editX = centerX - editWidth / 2;
+    editY = centerY - editHeight / 2;
   }
 
   return (
@@ -516,34 +644,23 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
       {isEditing && (
         <foreignObject
-          x={
-            object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
-              ? x
-              : editX - 50
-          }
-          y={
-            object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
-              ? y
-              : editY - 10
-          }
-          width={
-            object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
-              ? width
-              : editWidth + 100
-          }
-          height={
-            object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
-              ? height
-              : editHeight + 80
-          }
+          x={editX}
+          y={editY}
+          width={editWidth}
+          height={editHeight}
           style={{ pointerEvents: 'auto', cursor: 'text' }}
         >
           <div
             className={cn(
-              'w-full h-full flex justify-center p-2',
-              object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse'
-                ? 'items-center'
-                : 'items-start',
+              'w-full h-full flex',
+              object.type === 'text'
+                ? 'justify-start items-start p-0'
+                : 'justify-center items-center', // Removed p-2 for arrows to avoid double padding if we handle it inner, but Rect needs p-2? Rect uses w-full h-full.
+              // Actually, arrows need centered flex. Rects need centered flex.
+              // We will adjust padding on the inner element specifically for Arrow/Line.
+              object.type !== 'arrow' && object.type !== 'line' && object.type !== 'text'
+                ? 'p-2'
+                : 'p-0',
               'transition-all duration-200',
             )}
           >
@@ -553,12 +670,14 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               suppressContentEditableWarning
               tabIndex={0}
               className={cn(
-                'w-full border-none outline-none overflow-hidden text-center cursor-text',
-                object.type === 'rectangle' ||
-                  object.type === 'diamond' ||
-                  object.type === 'ellipse'
-                  ? 'text-white p-1'
-                  : 'text-white p-3 bg-zinc-900/90 rounded-lg shadow-2xl backdrop-blur-sm ring-2 ring-blue-500/50 shadow-blue-500/20',
+                'border-none outline-none cursor-text',
+                object.type === 'text'
+                  ? 'text-[#e4e4e7] p-0 bg-transparent text-left min-w-[10px] min-h-[1em]'
+                  : 'text-white text-center overflow-hidden min-w-[10px]',
+                // Apply specific padding for arrows/lines to match ArrowShape
+                object.type === 'arrow' || object.type === 'line'
+                  ? 'rounded-[4px]'
+                  : 'p-1 w-full h-full', // Rects keep p-1 w-full h-full
               )}
               style={{
                 fontSize:
@@ -570,15 +689,96 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                         object.type === 'ellipse'
                       ? 14
                       : 24),
-                fontFamily: 'Outfit, Inter, Outfit',
+                lineHeight: object.type === 'arrow' || object.type === 'line' ? '1.3' : '1.5',
+                padding: object.type === 'arrow' || object.type === 'line' ? '2px 4px' : undefined,
+                backgroundColor:
+                  object.type === 'arrow' || object.type === 'line' ? '#09090b' : undefined, // Match arrow background
+                fontFamily: '"Outfit", sans-serif',
                 wordBreak: 'break-word',
+                // Important: Match maxWidth logic from ArrowShape
+                maxWidth:
+                  (object.type === 'arrow' || object.type === 'line') && object.geometry.points
+                    ? `${Math.max(Math.min(Math.sqrt(Math.pow(object.geometry.points[object.geometry.points.length - 1].x - object.geometry.points[0].x, 2) + Math.pow(object.geometry.points[object.geometry.points.length - 1].y - object.geometry.points[0].y, 2)), 600), 100)}px`
+                    : undefined,
                 whiteSpace: 'pre-wrap',
-                minWidth: '120px',
+                minWidth: '10px',
+              }}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                if (object.type === 'text') {
+                  // Temporarily disable constraints to measure natural size
+                  const originalWidth = el.style.width;
+                  const originalHeight = el.style.height;
+                  el.style.width = 'auto';
+                  el.style.height = 'auto';
+                  el.style.display = 'inline-block';
+
+                  // scrollWidth/Height are ideal here as they reflect the content size
+                  // in the local coordinate system (independent of SVG zoom)
+                  const newWidth = Math.max(el.scrollWidth, 20);
+                  const newHeight = Math.max(el.scrollHeight, 20);
+
+                  // Restore styles
+                  el.style.width = originalWidth;
+                  el.style.height = originalHeight;
+                  el.style.display = '';
+
+                  updateObject(
+                    object.id,
+                    {
+                      geometry: {
+                        ...object.geometry,
+                        width: newWidth,
+                        height: newHeight,
+                      },
+                    },
+                    false,
+                  );
+                } else if (object.type === 'arrow' || object.type === 'line') {
+                  // Update text in real-time for arrows/lines to resize the gap
+                  updateObject(object.id, { text: el.innerText }, false);
+                }
               }}
               onBlur={(e) => {
-                if (e.currentTarget.innerText !== object.text) {
-                  useWhiteboard.getState().saveHistory();
-                  updateObject(object.id, { text: e.currentTarget.innerText });
+                const newText = e.currentTarget.innerText;
+                const el = e.currentTarget;
+
+                if (object.type === 'text') {
+                  // Final measurement for text objects
+                  const originalWidth = el.style.width;
+                  const originalHeight = el.style.height;
+                  el.style.width = 'auto';
+                  el.style.height = 'auto';
+                  el.style.display = 'inline-block';
+
+                  const finalWidth = Math.max(el.scrollWidth, 20);
+                  const finalHeight = Math.max(el.scrollHeight, 20);
+
+                  el.style.width = originalWidth;
+                  el.style.height = originalHeight;
+                  el.style.display = '';
+
+                  if (
+                    newText !== object.text ||
+                    object.geometry.width !== finalWidth ||
+                    object.geometry.height !== finalHeight
+                  ) {
+                    useWhiteboard.getState().saveHistory();
+                    updateObject(object.id, {
+                      text: newText,
+                      geometry: {
+                        ...object.geometry,
+                        width: finalWidth,
+                        height: finalHeight,
+                      },
+                    });
+                  }
+                } else {
+                  // For shapes (rect, arrow, etc), just update text without changing geometry
+                  if (newText !== object.text) {
+                    useWhiteboard.getState().saveHistory();
+                    updateObject(object.id, { text: newText });
+                  }
                 }
                 setEditingObject(null);
               }}
@@ -592,7 +792,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                 }
               }}
             >
-              {object.text}
+              {!isEditing && object.text}
             </div>
           </div>
         </foreignObject>
@@ -627,7 +827,8 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           {(object.type === 'rectangle' ||
             object.type === 'diamond' ||
             object.type === 'ellipse' ||
-            object.type === 'group') && (
+            object.type === 'group' ||
+            object.type === 'text') && (
             <>
               {/* Edge handles */}
               {['n', 's', 'e', 'w'].map((id) => (

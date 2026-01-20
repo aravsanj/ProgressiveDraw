@@ -637,8 +637,8 @@ export const Canvas: React.FC = () => {
               geometry: {
                 x,
                 y,
-                width: undefined,
-                height: undefined,
+                width: type === 'text' ? 200 : undefined,
+                height: type === 'text' ? 40 : undefined,
                 points: undefined,
               },
               style: {

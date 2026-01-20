@@ -1,9 +1,12 @@
 import React from 'react';
 import type { CanvasObject } from '../../types';
 
-export const LineShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
+export const LineShape: React.FC<{ object: CanvasObject; isEditing?: boolean }> = ({
+  object,
+  isEditing,
+}) => {
   const { geometry, style, text } = object;
-  
+
   const points = geometry.points;
   if (!points || points.length < 2) return null;
 
@@ -17,16 +20,16 @@ export const LineShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
   const cx = (p1.x + p2.x) / 2;
   const cy = (p1.y + p2.y) / 2;
 
+  // Calculate line length for max width
+  const length = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+  // Cap at ~80 chars (approx 600px) for readability, but at least 100px
+  const textMaxWidth = Math.max(Math.min(length, 600), 100);
+  const foreignObjectWidth = textMaxWidth + 40; // Add buffer
+
   return (
     <g>
       {/* Invisible thicker path for hit testing */}
-      <path
-        d={d}
-        stroke="transparent"
-        strokeWidth={20}
-        fill="none"
-        pointerEvents="visibleStroke"
-      />
+      <path d={d} stroke="transparent" strokeWidth={20} fill="none" pointerEvents="visibleStroke" />
       <path
         d={d}
         stroke={style.stroke || '#e4e4e7'}
@@ -36,9 +39,9 @@ export const LineShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
       />
       {text && (
         <foreignObject
-          x={cx - 150}
+          x={cx - foreignObjectWidth / 2}
           y={cy - 100}
-          width={300}
+          width={foreignObjectWidth}
           height={200}
           style={{ pointerEvents: 'none', overflow: 'visible' }}
         >
@@ -53,18 +56,19 @@ export const LineShape: React.FC<{ object: CanvasObject }> = ({ object }) => {
           >
             <div
               style={{
-                color: style.stroke || '#e4e4e7',
+                color: isEditing ? 'transparent' : style.stroke || '#e4e4e7',
                 fontSize: style.fontSize || 12,
                 fontFamily: 'Outfit',
                 background: '#09090b', // Match zinc-950
-                padding: '4px 8px',
+                padding: '2px 4px', // Reduced padding
                 borderRadius: '4px',
                 textAlign: 'center',
                 width: 'max-content',
-                maxWidth: '280px',
+                maxWidth: `${textMaxWidth}px`,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
                 pointerEvents: 'auto',
+                lineHeight: '1.3', // Tighter line height
               }}
             >
               {text}

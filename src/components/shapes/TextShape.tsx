@@ -11,11 +11,9 @@ export const TextShape: React.FC<Props> = ({ object, isEditing }) => {
   const fontSize = style.fontSize || 16;
   const hasText = !!text;
 
-  // Estimate text dimensions for a transparent hit area
-  // This ensures the move cursor is consistent and the object is easy to select
-  const estimatedWidth = hasText ? Math.max(100, text.length * fontSize * 0.6) : 150;
-  // Increase height if we're showing the placeholder to cover both lines
-  const estimatedHeight = hasText ? fontSize * 1.5 : fontSize * 2.5;
+  // Use geometry dimensions if available, otherwise estimate
+  const width = geometry.width || (hasText ? Math.max(100, text.length * fontSize * 0.6) : 150);
+  const height = geometry.height || (hasText ? fontSize * 1.5 : fontSize * 2.5);
 
   return (
     <g>
@@ -23,47 +21,55 @@ export const TextShape: React.FC<Props> = ({ object, isEditing }) => {
       <rect
         x={geometry.x}
         y={geometry.y}
-        width={estimatedWidth}
-        height={estimatedHeight}
+        width={width}
+        height={height}
         fill="transparent"
-        style={{ cursor: 'move', pointerEvents: 'all' }}
+        style={{ cursor: isEditing ? 'text' : 'move', pointerEvents: 'all' }}
       />
       {hasText ? (
-        <text
+        <foreignObject
           x={geometry.x}
           y={geometry.y}
-          fill={style.fill || '#e4e4e7'}
-          fontSize={fontSize}
-          fontFamily="Outfit"
-          dy="1em"
-          style={{
-            cursor: 'move',
-            userSelect: 'none',
-            pointerEvents: 'none',
-            WebkitUserSelect: 'none',
-          }}
+          width={width}
+          height={height}
+          style={{ pointerEvents: 'none' }}
         >
-          {text}
-        </text>
-      ) : (
-        !isEditing && (
-          <text
-            x={geometry.x}
-            y={geometry.y}
-            fill="#52525b"
-            fontSize={12}
-            fontFamily="Outfit"
-            fontStyle="italic"
-            dy="2em"
+          <div
             style={{
-              cursor: 'move',
-              userSelect: 'none',
-              pointerEvents: 'none',
-              WebkitUserSelect: 'none',
+              color: style.fill || '#e4e4e7',
+              fontSize: `${fontSize}px`,
+              fontFamily: '"Outfit", sans-serif',
+              lineHeight: 1.5,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              width: '100%',
             }}
           >
-            Double click to edit
-          </text>
+            {text}
+          </div>
+        </foreignObject>
+      ) : (
+        !isEditing && (
+          <foreignObject
+            x={geometry.x}
+            y={geometry.y}
+            width={width}
+            height={height}
+            style={{ pointerEvents: 'none' }}
+          >
+            <div
+              style={{
+                color: '#52525b',
+                fontSize: '12px',
+                fontFamily: '"Outfit", sans-serif',
+                fontStyle: 'italic',
+                lineHeight: 1.5,
+                marginTop: '1.5em',
+              }}
+            >
+              Double click to edit
+            </div>
+          </foreignObject>
         )
       )}
     </g>
