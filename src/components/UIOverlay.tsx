@@ -44,6 +44,7 @@ export const UIOverlay: React.FC = () => {
     selectObject,
     setZoom,
     setPan,
+    removeObjectFromGroup,
   } = useWhiteboard();
 
   const selectedObjects = ui.selectedObjectIds.map((id) => objects[id]).filter(Boolean);
@@ -396,7 +397,7 @@ export const UIOverlay: React.FC = () => {
                   {singleSelection.children?.map((childId, index) => {
                     const child = objects[childId];
                     if (!child) return null;
-                    
+
                     let IconComponent = Square;
                     if (child.type === 'diamond') IconComponent = Diamond;
                     else if (child.type === 'ellipse') IconComponent = Circle;
@@ -406,20 +407,35 @@ export const UIOverlay: React.FC = () => {
                     else if (child.type === 'group') IconComponent = Layers;
 
                     return (
-                      <div 
-                        key={child.id} 
-                        onClick={() => selectObject(child.id)}
-                        className="flex items-center gap-2 group/item bg-zinc-950/50 p-1.5 rounded border border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900 transition-colors w-full overflow-hidden cursor-pointer"
-                      >
-                        <span className="text-[10px] text-violet-500 font-mono min-w-[12px] font-bold">
-                          {index + 1}
-                        </span>
-                        <div className="text-zinc-500" title={child.type}>
-                          <IconComponent size={12} />
+                      <div key={child.id} className="flex items-center gap-1 group/item">
+                        <div
+                          onClick={() => selectObject(child.id)}
+                          className="flex items-center gap-2 bg-zinc-950/50 p-1.5 rounded border border-zinc-800/50 hover:border-zinc-700 hover:bg-zinc-900 transition-colors flex-1 overflow-hidden cursor-pointer"
+                        >
+                          <span className="text-[10px] text-violet-500 font-mono min-w-[12px] font-bold">
+                            {index + 1}
+                          </span>
+                          <div className="text-zinc-500" title={child.type}>
+                            <IconComponent size={12} />
+                          </div>
+                          <span
+                            className="flex-1 text-xs text-zinc-300 truncate"
+                            title={child.text || child.type}
+                          >
+                            {child.text || child.type}
+                          </span>
                         </div>
-                        <span className="flex-1 text-xs text-zinc-300 truncate" title={child.text || child.type}>
-                           {child.text || child.type}
-                        </span>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeObjectFromGroup(singleSelection.id, child.id);
+                          }}
+                          className="text-zinc-500 hover:text-red-400 p-1.5 cursor-pointer rounded hover:bg-zinc-800 transition-colors"
+                          title="Remove from group"
+                        >
+                          <Ungroup size={14} />
+                        </button>
                       </div>
                     );
                   })}
@@ -515,10 +531,12 @@ const ToolButton: React.FC<{
   >
     {icon}
     {subLabel && (
-      <span className={cn(
-        "absolute bottom-0.5 right-1 text-[8px] font-bold leading-none pointer-events-none",
-        active ? "text-blue-500" : "text-zinc-500"
-      )}>
+      <span
+        className={cn(
+          'absolute bottom-0.5 right-1 text-[8px] font-bold leading-none pointer-events-none',
+          active ? 'text-blue-500' : 'text-zinc-500',
+        )}
+      >
         {subLabel}
       </span>
     )}

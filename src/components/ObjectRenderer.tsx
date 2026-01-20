@@ -194,10 +194,7 @@ const PointHandle: React.FC<{
             // Prevent connecting start to end connection object
             !(pointIndex === 0 && otherObj.id === object.endConnection?.objectId) &&
             // Prevent connecting end to start connection object
-            !(
-              pointIndex === points.length - 1 &&
-              otherObj.id === object.startConnection?.objectId
-            )
+            !(pointIndex === points.length - 1 && otherObj.id === object.startConnection?.objectId)
           ) {
             const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
             const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
@@ -277,8 +274,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
     return (
       obj &&
       (obj.type === 'arrow' || obj.type === 'line') &&
-      (obj.startConnection?.objectId === object.id ||
-        obj.endConnection?.objectId === object.id)
+      (obj.startConnection?.objectId === object.id || obj.endConnection?.objectId === object.id)
     );
   });
 
@@ -335,7 +331,10 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         }
 
         // If object is part of a group, select the group instead
-        const targetId = object.parentId && objects[object.parentId] ? object.parentId : object.id;
+        // UNLESS this specific object is already selected (allows "drilling down")
+        const isSelected = ui.selectedObjectIds.includes(object.id);
+        const targetId =
+          object.parentId && objects[object.parentId] && !isSelected ? object.parentId : object.id;
         const targetObj = objects[targetId];
 
         if (e.shiftKey && ui.selectedObjectIds.length > 0 && targetObj) {
@@ -346,8 +345,11 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
             // Calculate union bounding box of the last selected object and the clicked object
             const getBounds = (o: CanvasObject) => {
               if (o.geometry.points) {
-                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-                o.geometry.points.forEach(p => {
+                let minX = Infinity,
+                  minY = Infinity,
+                  maxX = -Infinity,
+                  maxY = -Infinity;
+                o.geometry.points.forEach((p) => {
                   minX = Math.min(minX, p.x);
                   minY = Math.min(minY, p.y);
                   maxX = Math.max(maxX, p.x);
@@ -373,21 +375,21 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
             const newSelectedIds = Object.values(objects)
               .filter((obj) => {
                 // Skip if not visible/selectable (simplified check)
-                 if (obj.parentId) return false; // We'll select parents instead
+                if (obj.parentId) return false; // We'll select parents instead
 
                 const b = getBounds(obj);
                 // Rect intersection check
                 return (
-                   b.x < selectionRect.x + selectionRect.width &&
-                   b.x + b.width > selectionRect.x &&
-                   b.y < selectionRect.y + selectionRect.height &&
-                   b.y + b.height > selectionRect.y
+                  b.x < selectionRect.x + selectionRect.width &&
+                  b.x + b.width > selectionRect.x &&
+                  b.y < selectionRect.y + selectionRect.height &&
+                  b.y + b.height > selectionRect.y
                 );
               })
-              .map(o => o.id);
-            
+              .map((o) => o.id);
+
             // Ensure the explicitly clicked one and anchor are included (they should be by geom check)
-            // But handle groups: parentIds might be needed if children matched? 
+            // But handle groups: parentIds might be needed if children matched?
             // The filter above skips objects with parents, so we only select top-level items.
             // This is consistent with canvas drags.
 
@@ -395,7 +397,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
             return;
           }
         }
-        
+
         selectObject(targetId, e.ctrlKey || e.metaKey);
       },
       onDrag: ({ delta: [dx, dy], event, buttons, ctrlKey, first }) => {
@@ -500,7 +502,15 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
       {...(isEditing ? {} : (bind() as Record<string, unknown>))}
-      style={{ cursor: isEditing ? 'text' : 'move' }}
+      style={{
+        cursor: isEditing ? 'text' : 'move',
+        pointerEvents:
+          object.type === 'group' &&
+          !isSelected &&
+          object.children?.some((id) => ui.selectedObjectIds.includes(id))
+            ? 'none'
+            : 'auto',
+      }}
     >
       {renderShape()}
 
@@ -689,7 +699,9 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                 cy={a.cy}
                 r={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? 6 : 4}
                 fill="#18181b"
-                stroke={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? '#60a5fa' : '#3b82f6'}
+                stroke={
+                  ui.activeTool === 'arrow' || ui.activeTool === 'line' ? '#60a5fa' : '#3b82f6'
+                }
                 strokeWidth={2}
                 data-anchor="true"
                 data-object-id={object.id}

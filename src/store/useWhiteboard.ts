@@ -37,7 +37,50 @@ interface WhiteboardActions {
   copy: () => void;
   paste: () => string[];
   duplicate: () => string[];
+  removeObjectFromGroup: (groupId: string, childId: string) => void;
+  recalculateGroupBounds: (groupId: string) => void;
 }
+
+const calculateGroupBounds = (
+  objects: Record<string, CanvasObject>,
+  childrenIds: string[],
+): { x: number; y: number; width: number; height: number } | null => {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  let hasChildren = false;
+
+  childrenIds.forEach((childId) => {
+    const child = objects[childId];
+    if (!child) return;
+    hasChildren = true;
+
+    if (child.geometry.points) {
+      child.geometry.points.forEach((p) => {
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x);
+        maxY = Math.max(maxY, p.y);
+      });
+    } else {
+      const { x, y, width = 0, height = 0 } = child.geometry;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + width);
+      maxY = Math.max(maxY, y + height);
+    }
+  });
+
+  if (!hasChildren) return null;
+
+  return {
+    x: minX - 10,
+    y: minY - 10,
+    width: maxX - minX + 20,
+    height: maxY - minY + 20,
+  };
+};
 
 export const useWhiteboard = create<
   WhiteboardState &
@@ -66,13 +109,49 @@ export const useWhiteboard = create<
 
       addObject: (obj) => {
         const id = nanoid();
-        const newObject: CanvasObject = { ...obj, id };
+        let newObject: CanvasObject = { ...obj, id };
 
-        set((state) => ({
-          past: [...state.past, state.objects],
-          future: [],
-          objects: { ...state.objects, [id]: newObject },
-        }));
+        set((state) => {
+          const newObjects = { ...state.objects, [id]: newObject };
+
+          // Handle arrow/line group membership
+          if (newObject.type === 'arrow' || newObject.type === 'line') {
+            const startId = newObject.startConnection?.objectId;
+            const endId = newObject.endConnection?.objectId;
+
+            if (startId && endId) {
+              const startParent = newObjects[startId]?.parentId;
+              const endParent = newObjects[endId]?.parentId;
+              if (startParent && startParent === endParent && newObjects[startParent]) {
+                const targetParentId = startParent;
+                const parent = newObjects[targetParentId];
+                newObjects[targetParentId] = {
+                  ...parent,
+                  children: Array.from(new Set([...(parent.children || []), id])),
+                };
+                newObject = { ...newObject, parentId: targetParentId };
+                newObjects[id] = newObject;
+
+                const newBounds = calculateGroupBounds(
+                  newObjects,
+                  newObjects[targetParentId].children!,
+                );
+                if (newBounds) {
+                  newObjects[targetParentId] = {
+                    ...newObjects[targetParentId],
+                    geometry: newBounds,
+                  };
+                }
+              }
+            }
+          }
+
+          return {
+            past: [...state.past, state.objects],
+            future: [],
+            objects: newObjects,
+          };
+        });
         return id;
       },
 
@@ -183,6 +262,80 @@ export const useWhiteboard = create<
 
           const finalObjects = updateConnections(newObjects);
 
+          // Handle arrow/line group membership
+          let currentObj = finalObjects[id];
+          if (
+            (currentObj.type === 'arrow' || currentObj.type === 'line') &&
+            (updates.startConnection !== undefined || updates.endConnection !== undefined)
+          ) {
+            const startId = currentObj.startConnection?.objectId;
+            const endId = currentObj.endConnection?.objectId;
+            let targetParentId: string | undefined = undefined;
+
+            if (startId && endId) {
+              const startParent = finalObjects[startId]?.parentId;
+              const endParent = finalObjects[endId]?.parentId;
+              if (startParent && startParent === endParent) {
+                targetParentId = startParent;
+              }
+            }
+
+            if (currentObj.parentId !== targetParentId) {
+              const oldParentId = currentObj.parentId;
+              // Remove from old parent
+              if (oldParentId && finalObjects[oldParentId]) {
+                const oldParent = finalObjects[oldParentId];
+                finalObjects[oldParentId] = {
+                  ...oldParent,
+                  children: oldParent.children?.filter((cid) => cid !== id),
+                };
+                const oldBounds = calculateGroupBounds(
+                  finalObjects,
+                  finalObjects[oldParentId].children || [],
+                );
+                if (oldBounds) {
+                  finalObjects[oldParentId].geometry = oldBounds;
+                } else {
+                  delete finalObjects[oldParentId]; // Remove empty group
+                }
+              }
+
+              // Add to new parent
+              if (targetParentId && finalObjects[targetParentId]) {
+                const newParent = finalObjects[targetParentId];
+                finalObjects[targetParentId] = {
+                  ...newParent,
+                  children: Array.from(new Set([...(newParent.children || []), id])),
+                };
+                finalObjects[id] = { ...finalObjects[id], parentId: targetParentId };
+                const newBounds = calculateGroupBounds(
+                  finalObjects,
+                  finalObjects[targetParentId].children || [],
+                );
+                if (newBounds) {
+                  finalObjects[targetParentId].geometry = newBounds;
+                }
+              } else {
+                finalObjects[id] = { ...finalObjects[id], parentId: undefined };
+              }
+              currentObj = finalObjects[id];
+            }
+          }
+
+          // Update parent group bounds if needed
+          if (currentObj?.parentId && finalObjects[currentObj.parentId]) {
+            const parent = finalObjects[currentObj.parentId];
+            if (parent.children) {
+              const newBounds = calculateGroupBounds(finalObjects, parent.children);
+              if (newBounds) {
+                finalObjects[parent.id] = {
+                  ...parent,
+                  geometry: newBounds,
+                };
+              }
+            }
+          }
+
           const historyUpdate = saveHistory
             ? {
                 past: [...state.past, state.objects],
@@ -240,7 +393,70 @@ export const useWhiteboard = create<
           const objectsToGroup = ids.map((id) => state.objects[id]).filter(Boolean);
           if (objectsToGroup.length === 0) return {};
 
-          // Calculate bounding box
+          const existingGroups = objectsToGroup.filter((obj) => obj.type === 'group');
+
+          const newObjects = { ...state.objects };
+
+          // Helper to clean up parent reference properly
+          const removeFromOldParent = (objectId: string, newParentId?: string) => {
+            const obj = newObjects[objectId];
+            if (obj?.parentId && newObjects[obj.parentId] && obj.parentId !== newParentId) {
+              const oldParent = newObjects[obj.parentId];
+              if (oldParent.children) {
+                newObjects[obj.parentId] = {
+                  ...oldParent,
+                  children: oldParent.children.filter((cid) => cid !== objectId),
+                };
+                // Recalculate old parent bounds if it still has children
+                if (newObjects[obj.parentId].children!.length > 0) {
+                  const newBounds = calculateGroupBounds(
+                    newObjects,
+                    newObjects[obj.parentId].children!,
+                  );
+                  if (newBounds) {
+                    newObjects[obj.parentId] = {
+                      ...newObjects[obj.parentId],
+                      geometry: newBounds,
+                    };
+                  }
+                } else {
+                  // If no children left, remove the old group
+                  delete newObjects[obj.parentId];
+                }
+              }
+            }
+          };
+
+          if (existingGroups.length === 1) {
+            const existingGroup = existingGroups[0];
+            const otherIds = ids.filter((id) => id !== existingGroup.id);
+
+            // Add items to existing group, ensuring no duplicates
+            const updatedChildren = Array.from(
+              new Set([...(existingGroup.children || []), ...otherIds]),
+            );
+
+            otherIds.forEach((id) => {
+              removeFromOldParent(id, existingGroup.id);
+              newObjects[id] = { ...newObjects[id], parentId: existingGroup.id };
+            });
+
+            const newBounds = calculateGroupBounds(newObjects, updatedChildren);
+            newObjects[existingGroup.id] = {
+              ...existingGroup,
+              children: updatedChildren,
+              geometry: newBounds || existingGroup.geometry,
+            };
+
+            return {
+              past: [...state.past, state.objects],
+              future: [],
+              objects: newObjects,
+              ui: { ...state.ui, selectedObjectIds: [existingGroup.id] },
+            };
+          }
+
+          // Default: Create new group (if 0 or >1 groups selected)
           let minX = Infinity,
             minY = Infinity,
             maxX = -Infinity,
@@ -268,20 +484,19 @@ export const useWhiteboard = create<
             id: groupId,
             type: 'group',
             children: ids,
-            parentId: undefined,
             geometry: {
               x: minX - 10,
               y: minY - 10,
               width: maxX - minX + 20,
               height: maxY - minY + 20,
             },
-            style: { stroke: 'rgba(0,0,0,0)', fill: 'transparent' }, // Invisible wrapper by default, or dashed
+            style: { stroke: 'rgba(0,0,0,0)', fill: 'transparent' },
             appearFrame: Math.min(...objectsToGroup.map((o) => o.appearFrame)),
-            disappearFrame: undefined,
           };
 
-          const newObjects = { ...state.objects, [groupId]: group };
+          newObjects[groupId] = group;
           ids.forEach((id) => {
+            removeFromOldParent(id, groupId);
             newObjects[id] = { ...newObjects[id], parentId: groupId };
           });
 
@@ -344,20 +559,45 @@ export const useWhiteboard = create<
           const idsToDelete = collectIdsToDelete(ids);
 
           idsToDelete.forEach((id) => {
-            const obj = state.objects[id];
-            
-            // Clean up parent reference if parent is NOT being deleted
-            if (obj?.parentId && newObjects[obj.parentId] && !idsToDelete.has(obj.parentId)) {
-              const parent = newObjects[obj.parentId];
-              if (parent.children) {
-                newObjects[obj.parentId] = {
-                  ...parent,
-                  children: parent.children.filter((cid) => cid !== id),
+            delete newObjects[id];
+          });
+
+          // Cleanup groups: update children lists, recalculate bounds, or remove empty groups
+          Object.keys(newObjects).forEach((id) => {
+            const obj = newObjects[id];
+            if (obj.type === 'group' && obj.children) {
+              let updatedChildren = obj.children.filter((cid) => newObjects[cid]);
+
+              // Check if any remaining arrows should leave the group
+              const arrowsInGroup = updatedChildren.filter((cid) => {
+                const o = newObjects[cid];
+                return o && (o.type === 'arrow' || o.type === 'line');
+              });
+
+              arrowsInGroup.forEach((aid) => {
+                const arrow = newObjects[aid];
+                const startId = arrow.startConnection?.objectId;
+                const endId = arrow.endConnection?.objectId;
+                const startParent = startId ? newObjects[startId]?.parentId : undefined;
+                const endParent = endId ? newObjects[endId]?.parentId : undefined;
+
+                if (startParent !== id || endParent !== id) {
+                  newObjects[aid] = { ...arrow, parentId: undefined };
+                  updatedChildren = updatedChildren.filter((cid) => cid !== aid);
+                }
+              });
+
+              if (updatedChildren.length === 0) {
+                delete newObjects[id];
+              } else {
+                const newBounds = calculateGroupBounds(newObjects, updatedChildren);
+                newObjects[id] = {
+                  ...obj,
+                  children: updatedChildren,
+                  geometry: newBounds || obj.geometry,
                 };
               }
             }
-
-            delete newObjects[id];
           });
 
           const newSelected = state.ui.selectedObjectIds.filter((oid) => !idsToDelete.has(oid));
@@ -497,6 +737,28 @@ export const useWhiteboard = create<
                 newObjects[id] = {
                   ...other,
                   geometry: { ...other.geometry, points },
+                };
+              }
+            }
+          });
+
+          // Update parent group bounds for all moved objects
+          const parentIdsToUpdate = new Set<string>();
+          movedIds.forEach((id) => {
+            const obj = newObjects[id];
+            if (obj?.parentId) {
+              parentIdsToUpdate.add(obj.parentId);
+            }
+          });
+
+          parentIdsToUpdate.forEach((parentId) => {
+            const parent = newObjects[parentId];
+            if (parent && parent.children) {
+              const newBounds = calculateGroupBounds(newObjects, parent.children);
+              if (newBounds) {
+                newObjects[parentId] = {
+                  ...parent,
+                  geometry: newBounds,
                 };
               }
             }
@@ -692,6 +954,85 @@ export const useWhiteboard = create<
         }));
 
         return newIds;
+      },
+
+      removeObjectFromGroup: (groupId, childId) => {
+        set((state) => {
+          const group = state.objects[groupId];
+          const child = state.objects[childId];
+          if (!group || !child || group.type !== 'group' || !group.children) return {};
+
+          const newChildren = group.children.filter((id) => id !== childId);
+          const newObjects = { ...state.objects };
+
+          // Update child
+          newObjects[childId] = { ...child, parentId: undefined };
+
+          // Check for arrows in this group that should now leave it
+          let childrenToKeep = newChildren;
+          const arrowsToProcess = newChildren.filter((id) => {
+            const o = newObjects[id];
+            return o && (o.type === 'arrow' || o.type === 'line');
+          });
+
+          arrowsToProcess.forEach((aid) => {
+            const arrow = newObjects[aid];
+            const startId = arrow.startConnection?.objectId;
+            const endId = arrow.endConnection?.objectId;
+            const startParent = startId ? newObjects[startId]?.parentId : undefined;
+            const endParent = endId ? newObjects[endId]?.parentId : undefined;
+
+            if (startParent !== groupId || endParent !== groupId) {
+              newObjects[aid] = { ...arrow, parentId: undefined };
+              childrenToKeep = childrenToKeep.filter((id) => id !== aid);
+            }
+          });
+
+          // Update group
+          if (childrenToKeep.length === 0) {
+            delete newObjects[groupId];
+          } else {
+            const newBounds = calculateGroupBounds(newObjects, childrenToKeep);
+            if (newBounds) {
+              newObjects[groupId] = {
+                ...group,
+                children: childrenToKeep,
+                geometry: newBounds,
+              };
+            } else {
+              newObjects[groupId] = { ...group, children: childrenToKeep };
+            }
+          }
+
+          return {
+            past: [...state.past, state.objects],
+            future: [],
+            objects: newObjects,
+            ui: {
+              ...state.ui,
+              selectedObjectIds: newObjects[groupId]
+                ? state.ui.selectedObjectIds
+                : state.ui.selectedObjectIds.filter((id) => id !== groupId),
+            },
+          };
+        });
+      },
+
+      recalculateGroupBounds: (groupId) => {
+        set((state) => {
+          const group = state.objects[groupId];
+          if (!group || group.type !== 'group' || !group.children) return {};
+
+          const newBounds = calculateGroupBounds(state.objects, group.children);
+          if (!newBounds) return {};
+
+          return {
+            objects: {
+              ...state.objects,
+              [groupId]: { ...group, geometry: newBounds },
+            },
+          };
+        });
       },
 
       loadFromObject: (state) => {

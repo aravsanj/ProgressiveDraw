@@ -240,7 +240,7 @@ export const Canvas: React.FC = () => {
       ) {
         const key = e.key.toLowerCase();
         const setTool = useWhiteboard.getState().setTool;
-        
+
         if (key === '1' || key === 'v') setTool('select');
         else if (key === '2' || key === 'r') setTool('rectangle');
         else if (key === '3' || key === 'd') setTool('diamond');
@@ -249,7 +249,7 @@ export const Canvas: React.FC = () => {
         else if (key === '6' || key === 'l') setTool('line');
         else if (key === '8' || key === 't') {
           setTool('text');
-          // Important: Don't prevent default here if t is pressed, 
+          // Important: Don't prevent default here if t is pressed,
           // but we already checked !isContentEditable, so it should be fine.
         }
       }
@@ -771,9 +771,21 @@ export const Canvas: React.FC = () => {
 
           <g pointerEvents="auto">
             <AnimatePresence>
-              {Object.values(objects).map((obj) => (
-                <ObjectRenderer key={obj.id} object={obj} />
-              ))}
+              {Object.values(objects)
+                .sort((a, b) => {
+                  const aSelected = ui.selectedObjectIds.includes(a.id);
+                  const bSelected = ui.selectedObjectIds.includes(b.id);
+                  if (aSelected !== bSelected) return aSelected ? 1 : -1;
+
+                  // If both selected or both not, prioritize children over parents
+                  if (a.parentId === b.id) return 1;
+                  if (b.parentId === a.id) return -1;
+
+                  return 0;
+                })
+                .map((obj) => (
+                  <ObjectRenderer key={obj.id} object={obj} />
+                ))}
             </AnimatePresence>
 
             {selectionRect && (
@@ -789,51 +801,64 @@ export const Canvas: React.FC = () => {
               />
             )}
 
-            {ui.selectedObjectIds.length === 1 && objects[ui.selectedObjectIds[0]]?.type === 'group' && (
-              <>
-                {objects[ui.selectedObjectIds[0]].children?.map((childId, index) => {
-                  const child = objects[childId];
-                  if (!child) return null;
+            {ui.selectedObjectIds.length === 1 &&
+              objects[ui.selectedObjectIds[0]]?.type === 'group' && (
+                <>
+                  {objects[ui.selectedObjectIds[0]].children?.map((childId, index) => {
+                    const child = objects[childId];
+                    if (!child) return null;
 
-                  let x = 0;
-                  let y = 0;
+                    let x = 0;
+                    let y = 0;
 
-                  if (child.geometry.points) {
-                    // Arrow/Line: use start point
-                     x = child.geometry.points[0].x;
-                     y = child.geometry.points[0].y;
-                  } else {
-                     // Shapes: use center
-                     x = child.geometry.x + (child.geometry.width || 0) / 2;
-                     y = child.geometry.y + (child.geometry.height || 0) / 2;
-                  }
-                  
-                  return (
-                    <g key={childId} pointerEvents="none">
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r={10 / ui.zoom}
-                        fill="#8b5cf6"
-                        stroke="white"
-                        strokeWidth={2 / ui.zoom}
-                      />
-                      <text
-                        x={x}
-                        y={y}
-                        fill="white"
-                        fontSize={12 / ui.zoom}
-                        fontWeight="bold"
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                      >
-                        {index + 1}
-                      </text>
-                    </g>
-                  );
-                })}
-              </>
-            )}
+                    if (child.geometry.points) {
+                      // Arrow/Line: use start point
+                      x = child.geometry.points[0].x;
+                      y = child.geometry.points[0].y;
+                    } else {
+                      // Shapes: use center
+                      x = child.geometry.x + (child.geometry.width || 0) / 2;
+                      y = child.geometry.y + (child.geometry.height || 0) / 2;
+                    }
+
+                    const r = 12 / ui.zoom;
+
+                    return (
+                      <g key={childId} pointerEvents="auto">
+                        {/* Number Button: Click to select */}
+                        <g
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selectObject(childId);
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r={r}
+                            fill="#8b5cf6"
+                            stroke="white"
+                            strokeWidth={2 / ui.zoom}
+                            className="hover:fill-violet-600 transition-colors"
+                          />
+                          <text
+                            x={x}
+                            y={y}
+                            fill="white"
+                            fontSize={12 / ui.zoom}
+                            fontWeight="bold"
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                          >
+                            {index + 1}
+                          </text>
+                        </g>
+                      </g>
+                    );
+                  })}
+                </>
+              )}
           </g>
         </g>
       </svg>
