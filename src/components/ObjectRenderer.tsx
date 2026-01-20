@@ -675,9 +675,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                   ? 'text-[#e4e4e7] p-0 bg-transparent text-left min-w-[10px] min-h-[1em]'
                   : 'text-white text-center overflow-hidden min-w-[10px]',
                 // Apply specific padding for arrows/lines to match ArrowShape
-                object.type === 'arrow' || object.type === 'line'
-                  ? 'rounded-[4px]'
-                  : 'p-1 w-full h-full', // Rects keep p-1 w-full h-full
+                object.type === 'arrow' || object.type === 'line' ? 'rounded-[4px]' : 'p-1', // Removed w-full h-full to allow flex container to actually center the content
               )}
               style={{
                 fontSize:
@@ -699,7 +697,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                 maxWidth:
                   (object.type === 'arrow' || object.type === 'line') && object.geometry.points
                     ? `${Math.max(Math.min(Math.sqrt(Math.pow(object.geometry.points[object.geometry.points.length - 1].x - object.geometry.points[0].x, 2) + Math.pow(object.geometry.points[object.geometry.points.length - 1].y - object.geometry.points[0].y, 2)), 600), 100)}px`
-                    : undefined,
+                    : '100%',
                 whiteSpace: 'pre-wrap',
                 minWidth: '10px',
               }}
