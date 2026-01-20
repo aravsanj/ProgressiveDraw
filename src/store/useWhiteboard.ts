@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
-import type { CanvasObject, WhiteboardState, Tool } from '../types';
+import { Tool, COT } from '../types';
+import type { CanvasObject, WhiteboardState } from '../types';
 
 interface WhiteboardActions {
   addObject: (obj: Omit<CanvasObject, 'id'>) => string;
@@ -26,6 +27,7 @@ interface WhiteboardActions {
   selectObjects: (ids: string[]) => void;
   clearSelection: () => void;
   setTool: (tool: Tool) => void;
+  setIsPanning: (isPanning: boolean) => void;
   deleteObjects: (ids: string[]) => void;
   setEditingObject: (id: string | null) => void;
   moveObjects: (ids: string[], dx: number, dy: number, saveHistory?: boolean) => void;
@@ -99,10 +101,11 @@ export const useWhiteboard = create<
       future: [],
       ui: {
         mode: 'edit',
-        activeTool: 'select',
+        activeTool: Tool.Select,
         spotlightEnabled: false,
         zoom: 1,
         pan: { x: 0, y: 0 },
+        isPanning: false,
         selectedObjectIds: [],
         editingObjectId: null,
       },
@@ -114,14 +117,16 @@ export const useWhiteboard = create<
         set((state) => {
           const newObjects = { ...state.objects, [id]: newObject };
 
-          // Handle arrow/line group membership
-          if (newObject.type === 'arrow' || newObject.type === 'line') {
+          // This handles adding arrows/lines to groups if both ends connect to objects in the same group
+          if (newObject.type === COT.Arrow || newObject.type === COT.Line) {
             const startId = newObject.startConnection?.objectId;
             const endId = newObject.endConnection?.objectId;
 
             if (startId && endId) {
               const startParent = newObjects[startId]?.parentId;
               const endParent = newObjects[endId]?.parentId;
+              // If both ends connect to objects in the same group, add arrow/line to that group
+              // newObjects[startParent] is a defensive check to avoid adding to deleted groups (JUST IN CASE)
               if (startParent && startParent === endParent && newObjects[startParent]) {
                 const targetParentId = startParent;
                 const parent = newObjects[targetParentId];
@@ -164,7 +169,7 @@ export const useWhiteboard = create<
           const newObjects = { ...state.objects, [id]: newObj };
 
           // If resizing a group, scale children proportionally
-          if (newObj.type === 'group' && updates.geometry && obj.children) {
+          if (newObj.type === COT.Group && updates.geometry && obj.children) {
             const oldGeom = obj.geometry;
             const newGeom = newObj.geometry;
 
@@ -213,10 +218,10 @@ export const useWhiteboard = create<
           const updateConnections = (objectsInput: Record<string, CanvasObject>) => {
             const updatedObjects = { ...objectsInput };
             if (
-              newObj.type === 'rectangle' ||
-              newObj.type === 'diamond' ||
-              newObj.type === 'ellipse' ||
-              newObj.type === 'group'
+              newObj.type === COT.Rectangle ||
+              newObj.type === COT.Diamond ||
+              newObj.type === COT.Ellipse ||
+              newObj.type === COT.Group
             ) {
               const getAnchorPos = (obj: CanvasObject, anchorId: string) => {
                 const { x, y, width = 0, height = 0 } = obj.geometry;
@@ -235,7 +240,7 @@ export const useWhiteboard = create<
               };
 
               Object.values(updatedObjects).forEach((other) => {
-                if (other.type === 'arrow' || other.type === 'line') {
+                if (other.type === COT.Arrow || other.type === COT.Line) {
                   let pointsMoved = false;
                   const points = [...(other.geometry.points || [])];
 
@@ -265,7 +270,7 @@ export const useWhiteboard = create<
           // Handle arrow/line group membership
           let currentObj = finalObjects[id];
           if (
-            (currentObj.type === 'arrow' || currentObj.type === 'line') &&
+            (currentObj.type === COT.Arrow || currentObj.type === COT.Line) &&
             (updates.startConnection !== undefined || updates.endConnection !== undefined)
           ) {
             const startId = currentObj.startConnection?.objectId;
@@ -393,7 +398,7 @@ export const useWhiteboard = create<
           const objectsToGroup = ids.map((id) => state.objects[id]).filter(Boolean);
           if (objectsToGroup.length === 0) return {};
 
-          const existingGroups = objectsToGroup.filter((obj) => obj.type === 'group');
+          const existingGroups = objectsToGroup.filter((obj) => obj.type === COT.Group);
 
           const newObjects = { ...state.objects };
 
@@ -482,7 +487,7 @@ export const useWhiteboard = create<
           const groupId = nanoid();
           const group: CanvasObject = {
             id: groupId,
-            type: 'group',
+            type: COT.Group,
             children: ids,
             geometry: {
               x: minX - 10,
@@ -512,7 +517,7 @@ export const useWhiteboard = create<
       ungroupObjects: (groupId) => {
         set((state) => {
           const group = state.objects[groupId];
-          if (!group || group.type !== 'group' || !group.children) return {};
+          if (!group || group.type !== COT.Group || !group.children) return {};
 
           const newObjects = { ...state.objects };
           const childrenIds = group.children;
@@ -565,13 +570,13 @@ export const useWhiteboard = create<
           // Cleanup groups: update children lists, recalculate bounds, or remove empty groups
           Object.keys(newObjects).forEach((id) => {
             const obj = newObjects[id];
-            if (obj.type === 'group' && obj.children) {
+            if (obj.type === COT.Group && obj.children) {
               let updatedChildren = obj.children.filter((cid) => newObjects[cid]);
 
               // Check if any remaining arrows should leave the group
               const arrowsInGroup = updatedChildren.filter((cid) => {
                 const o = newObjects[cid];
-                return o && (o.type === 'arrow' || o.type === 'line');
+                return o && (o.type === COT.Arrow || o.type === COT.Line);
               });
 
               arrowsInGroup.forEach((aid) => {
@@ -663,6 +668,8 @@ export const useWhiteboard = create<
 
       setTool: (tool) => set((state) => ({ ui: { ...state.ui, activeTool: tool } })),
 
+      setIsPanning: (isPanning) => set((state) => ({ ui: { ...state.ui, isPanning } })),
+
       setEditingObject: (id) => set((state) => ({ ui: { ...state.ui, editingObjectId: id } })),
 
       moveObjects: (ids, dx, dy, saveHistory = false) => {
@@ -688,7 +695,7 @@ export const useWhiteboard = create<
             const obj = newObjects[id];
             if (!obj) return;
 
-            if ((obj.type === 'arrow' || obj.type === 'line') && obj.geometry.points) {
+            if ((obj.type === COT.Arrow || obj.type === COT.Line) && obj.geometry.points) {
               const newPoints = obj.geometry.points.map((p) => ({
                 x: p.x + dx,
                 y: p.y + dy,
@@ -717,7 +724,7 @@ export const useWhiteboard = create<
             if (movedIds.includes(id)) return;
 
             const other = newObjects[id];
-            if (other.type === 'arrow' || other.type === 'line') {
+            if (other.type === COT.Arrow || other.type === COT.Line) {
               let pointsMoved = false;
               const points = [...(other.geometry.points || [])];
 
@@ -960,7 +967,7 @@ export const useWhiteboard = create<
         set((state) => {
           const group = state.objects[groupId];
           const child = state.objects[childId];
-          if (!group || !child || group.type !== 'group' || !group.children) return {};
+          if (!group || !child || group.type !== COT.Group || !group.children) return {};
 
           const newChildren = group.children.filter((id) => id !== childId);
           const newObjects = { ...state.objects };
@@ -972,7 +979,7 @@ export const useWhiteboard = create<
           let childrenToKeep = newChildren;
           const arrowsToProcess = newChildren.filter((id) => {
             const o = newObjects[id];
-            return o && (o.type === 'arrow' || o.type === 'line');
+            return o && (o.type === COT.Arrow || o.type === COT.Line);
           });
 
           arrowsToProcess.forEach((aid) => {
@@ -1021,7 +1028,7 @@ export const useWhiteboard = create<
       recalculateGroupBounds: (groupId) => {
         set((state) => {
           const group = state.objects[groupId];
-          if (!group || group.type !== 'group' || !group.children) return {};
+          if (!group || group.type !== COT.Group || !group.children) return {};
 
           const newBounds = calculateGroupBounds(state.objects, group.children);
           if (!newBounds) return {};

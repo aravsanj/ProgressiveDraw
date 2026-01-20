@@ -1,5 +1,6 @@
 import React from 'react';
 import { useWhiteboard } from '../store/useWhiteboard';
+import { COT, Tool } from '../types';
 import { cn } from '../lib/utils';
 import {
   Square,
@@ -169,44 +170,44 @@ export const UIOverlay: React.FC = () => {
           icon={<MousePointer size={20} />}
           label="Select (1, V)"
           subLabel="1"
-          active={ui.activeTool === 'select'}
-          onClick={() => setTool('select')}
+          active={ui.activeTool === Tool.Select}
+          onClick={() => setTool(Tool.Select)}
         />
         <div className="h-px bg-zinc-800 my-1 mx-2" />
         <ToolButton
           icon={<Square size={20} />}
           label="Rectangle (2, R)"
           subLabel="2"
-          active={ui.activeTool === 'rectangle'}
-          onClick={() => setTool('rectangle')}
+          active={ui.activeTool === Tool.Rectangle}
+          onClick={() => setTool(Tool.Rectangle)}
         />
         <ToolButton
           icon={<Diamond size={20} />}
           label="Diamond (3, D)"
           subLabel="3"
-          active={ui.activeTool === 'diamond'}
-          onClick={() => setTool('diamond')}
+          active={ui.activeTool === Tool.Diamond}
+          onClick={() => setTool(Tool.Diamond)}
         />
         <ToolButton
           icon={<Circle size={20} />}
           label="Ellipse (4, O)"
           subLabel="4"
-          active={ui.activeTool === 'ellipse'}
-          onClick={() => setTool('ellipse')}
+          active={ui.activeTool === Tool.Ellipse}
+          onClick={() => setTool(Tool.Ellipse)}
         />
         <ToolButton
           icon={<ArrowRight size={20} />}
           label="Arrow (5, A)"
           subLabel="5"
-          active={ui.activeTool === 'arrow'}
-          onClick={() => setTool('arrow')}
+          active={ui.activeTool === Tool.Arrow}
+          onClick={() => setTool(Tool.Arrow)}
         />
         <ToolButton
           icon={<Minus size={20} />}
           label="Line (6, L)"
           subLabel="6"
-          active={ui.activeTool === 'line'}
-          onClick={() => setTool('line')}
+          active={ui.activeTool === Tool.Line}
+          onClick={() => setTool(Tool.Line)}
         />
         <ToolButton
           icon={<Pen size={20} />}
@@ -219,8 +220,8 @@ export const UIOverlay: React.FC = () => {
           icon={<Type size={20} />}
           label="Text (8, T)"
           subLabel="8"
-          active={ui.activeTool === 'text'}
-          onClick={() => setTool('text')}
+          active={ui.activeTool === Tool.Text}
+          onClick={() => setTool(Tool.Text)}
         />
         <ToolButton
           icon={<ImageIcon size={20} />}
@@ -381,7 +382,7 @@ export const UIOverlay: React.FC = () => {
             ID: {singleSelection.id.slice(0, 8)}
           </div>
 
-          {singleSelection.type === 'group' && (
+          {singleSelection.type === COT.Group && (
             <>
               <button
                 onClick={() => ungroupObjects(singleSelection.id)}
@@ -399,12 +400,12 @@ export const UIOverlay: React.FC = () => {
                     if (!child) return null;
 
                     let IconComponent = Square;
-                    if (child.type === 'diamond') IconComponent = Diamond;
-                    else if (child.type === 'ellipse') IconComponent = Circle;
-                    else if (child.type === 'arrow') IconComponent = ArrowRight;
-                    else if (child.type === 'line') IconComponent = Minus;
-                    else if (child.type === 'text') IconComponent = Type;
-                    else if (child.type === 'group') IconComponent = Layers;
+                    if (child.type === COT.Diamond) IconComponent = Diamond;
+                    else if (child.type === COT.Ellipse) IconComponent = Circle;
+                    else if (child.type === COT.Arrow) IconComponent = ArrowRight;
+                    else if (child.type === COT.Line) IconComponent = Minus;
+                    else if (child.type === COT.Text) IconComponent = Type;
+                    else if (child.type === COT.Group) IconComponent = Layers;
 
                     return (
                       <div key={child.id} className="flex items-center gap-1 group/item">

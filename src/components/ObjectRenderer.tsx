@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import type { CanvasObject } from '../types';
+import { COT, Tool, type CanvasObject } from '../types';
 import { useWhiteboard } from '../store/useWhiteboard';
 import { RectangleShape } from './shapes/RectangleShape';
 import { DiamondShape } from './shapes/DiamondShape';
@@ -106,7 +106,7 @@ const ResizeHandle: React.FC<{
         const updates: Partial<CanvasObject> = {};
 
         // Special handling for text: Vector-like scaling vs Reflow
-        if (object.type === 'text') {
+        if (object.type === COT.Text) {
           const isCorner = handle.length === 2;
           const isVert = handle === 'n' || handle === 's';
           const isHoriz = handle === 'e' || handle === 'w';
@@ -279,9 +279,9 @@ const PointHandle: React.FC<{
 
         for (const otherObj of Object.values(allObjects)) {
           if (
-            (otherObj.type === 'rectangle' ||
-              otherObj.type === 'diamond' ||
-              otherObj.type === 'ellipse') &&
+            (otherObj.type === COT.Rectangle ||
+              otherObj.type === COT.Diamond ||
+              otherObj.type === COT.Ellipse) &&
             otherObj.id !== object.id &&
             // Prevent connecting start to end connection object
             !(pointIndex === 0 && otherObj.id === object.endConnection?.objectId) &&
@@ -358,14 +358,14 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
   const isAnyArrowOrLineSelected = ui.selectedObjectIds.some((id) => {
     const obj = objects[id];
-    return obj && (obj.type === 'arrow' || obj.type === 'line');
+    return obj && (obj.type === COT.Arrow || obj.type === COT.Line);
   });
 
   const isConnectedToSelectedArrow = ui.selectedObjectIds.some((id) => {
     const obj = objects[id];
     return (
       obj &&
-      (obj.type === 'arrow' || obj.type === 'line') &&
+      (obj.type === COT.Arrow || obj.type === COT.Line) &&
       (obj.startConnection?.objectId === object.id || obj.endConnection?.objectId === object.id)
     );
   });
@@ -426,7 +426,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
 
         if (e.button !== 0 || isEditing) return;
 
-        if (ui.activeTool !== 'arrow' && ui.activeTool !== 'line') {
+        if (ui.activeTool !== Tool.Arrow && ui.activeTool !== Tool.Line) {
           event.stopPropagation();
         }
 
@@ -521,12 +521,12 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         // Prevent event from bubbling up to create new objects if applicable
         state.event.stopPropagation();
         if (
-          object.type === 'rectangle' ||
-          object.type === 'diamond' ||
-          object.type === 'ellipse' ||
-          object.type === 'text' ||
-          object.type === 'arrow' ||
-          object.type === 'line'
+          object.type === COT.Rectangle ||
+          object.type === COT.Diamond ||
+          object.type === COT.Ellipse ||
+          object.type === COT.Text ||
+          object.type === COT.Arrow ||
+          object.type === COT.Line
         ) {
           setEditingObject(object.id);
         }
@@ -546,7 +546,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
   const renderShape = () => {
     // Hide the primary shape text while editing to avoid overlap, EXCEPT for arrows/lines where we need it for the gap
     const visibleObject =
-      isEditing && object.type !== 'arrow' && object.type !== 'line'
+      isEditing && object.type !== COT.Arrow && object.type !== COT.Line
         ? { ...object, text: '' }
         : object;
 
@@ -554,19 +554,19 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       <g style={{ pointerEvents: isEditing ? 'none' : 'auto' }}>
         {(() => {
           switch (object.type) {
-            case 'rectangle':
+            case COT.Rectangle:
               return <RectangleShape object={visibleObject} />;
-            case 'diamond':
+            case COT.Diamond:
               return <DiamondShape object={visibleObject} />;
-            case 'ellipse':
+            case COT.Ellipse:
               return <EllipseShape object={visibleObject} />;
-            case 'arrow':
+            case COT.Arrow:
               return <ArrowShape object={visibleObject} isEditing={isEditing} />;
-            case 'line':
+            case COT.Line:
               return <LineShape object={visibleObject} isEditing={isEditing} />;
-            case 'text':
+            case COT.Text:
               return <TextShape object={visibleObject} isEditing={isEditing} />;
-            case 'group':
+            case COT.Group:
               return <GroupShape object={visibleObject} />;
             default:
               return null;
@@ -584,7 +584,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
   let editHeight = height;
 
   // Determine the Center Point and Dimensions for the edit box
-  if ((object.type === 'arrow' || object.type === 'line') && object.geometry.points) {
+  if ((object.type === COT.Arrow || object.type === COT.Line) && object.geometry.points) {
     const points = object.geometry.points;
     const p1 = points[0];
     const p2 = points[points.length - 1];
@@ -604,7 +604,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
     // Top-left of the edit box
     editX = centerX - editWidth / 2;
     editY = centerY - editHeight / 2;
-  } else if (object.type === 'text') {
+  } else if (object.type === COT.Text) {
     editWidth = Math.max(width, 100);
     editHeight = Math.max(height, 40);
     editX = x; // Text anchors top-left
@@ -633,7 +633,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       style={{
         cursor: isEditing ? 'text' : 'move',
         pointerEvents:
-          object.type === 'group' &&
+          object.type === COT.Group &&
           !isSelected &&
           object.children?.some((id) => ui.selectedObjectIds.includes(id))
             ? 'none'
@@ -653,12 +653,12 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           <div
             className={cn(
               'w-full h-full flex',
-              object.type === 'text'
+              object.type === COT.Text
                 ? 'justify-start items-start p-0'
                 : 'justify-center items-center', // Removed p-2 for arrows to avoid double padding if we handle it inner, but Rect needs p-2? Rect uses w-full h-full.
               // Actually, arrows need centered flex. Rects need centered flex.
               // We will adjust padding on the inner element specifically for Arrow/Line.
-              object.type !== 'arrow' && object.type !== 'line' && object.type !== 'text'
+              object.type !== COT.Arrow && object.type !== COT.Line && object.type !== COT.Text
                 ? 'p-2'
                 : 'p-0',
               'transition-all duration-200',
@@ -671,31 +671,31 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               tabIndex={0}
               className={cn(
                 'border-none outline-none cursor-text',
-                object.type === 'text'
+                object.type === COT.Text
                   ? 'text-[#e4e4e7] p-0 bg-transparent text-left min-w-[10px] min-h-[1em]'
                   : 'text-white text-center overflow-hidden min-w-[10px]',
                 // Apply specific padding for arrows/lines to match ArrowShape
-                object.type === 'arrow' || object.type === 'line' ? 'rounded-[4px]' : 'p-1', // Removed w-full h-full to allow flex container to actually center the content
+                object.type === COT.Arrow || object.type === COT.Line ? 'rounded-[4px]' : 'p-1', // Removed w-full h-full to allow flex container to actually center the content
               )}
               style={{
                 fontSize:
                   object.style.fontSize ||
-                  (object.type === 'arrow' || object.type === 'line'
+                  (object.type === COT.Arrow || object.type === COT.Line
                     ? 12
-                    : object.type === 'rectangle' ||
-                        object.type === 'diamond' ||
-                        object.type === 'ellipse'
+                    : object.type === COT.Rectangle ||
+                        object.type === COT.Diamond ||
+                        object.type === COT.Ellipse
                       ? 14
                       : 24),
-                lineHeight: object.type === 'arrow' || object.type === 'line' ? '1.3' : '1.5',
-                padding: object.type === 'arrow' || object.type === 'line' ? '2px 4px' : undefined,
+                lineHeight: object.type === COT.Arrow || object.type === COT.Line ? '1.3' : '1.5',
+                padding: object.type === COT.Arrow || object.type === COT.Line ? '2px 4px' : undefined,
                 backgroundColor:
-                  object.type === 'arrow' || object.type === 'line' ? '#09090b' : undefined, // Match arrow background
+                  object.type === COT.Arrow || object.type === COT.Line ? '#09090b' : undefined, // Match arrow background
                 fontFamily: '"Outfit", sans-serif',
                 wordBreak: 'break-word',
                 // Important: Match maxWidth logic from ArrowShape
                 maxWidth:
-                  (object.type === 'arrow' || object.type === 'line') && object.geometry.points
+                  (object.type === COT.Arrow || object.type === COT.Line) && object.geometry.points
                     ? `${Math.max(Math.min(Math.sqrt(Math.pow(object.geometry.points[object.geometry.points.length - 1].x - object.geometry.points[0].x, 2) + Math.pow(object.geometry.points[object.geometry.points.length - 1].y - object.geometry.points[0].y, 2)), 600), 100)}px`
                     : '100%',
                 whiteSpace: 'pre-wrap',
@@ -703,7 +703,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               }}
               onInput={(e) => {
                 const el = e.currentTarget;
-                if (object.type === 'text') {
+                if (object.type === COT.Text) {
                   // Temporarily disable constraints to measure natural size
                   const originalWidth = el.style.width;
                   const originalHeight = el.style.height;
@@ -732,7 +732,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                     },
                     false,
                   );
-                } else if (object.type === 'arrow' || object.type === 'line') {
+                } else if (object.type === COT.Arrow || object.type === COT.Line) {
                   // Update text in real-time for arrows/lines to resize the gap
                   updateObject(object.id, { text: el.innerText }, false);
                 }
@@ -741,7 +741,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                 const newText = e.currentTarget.innerText;
                 const el = e.currentTarget;
 
-                if (object.type === 'text') {
+                if (object.type === COT.Text) {
                   // Final measurement for text objects
                   const originalWidth = el.style.width;
                   const originalHeight = el.style.height;
@@ -799,7 +799,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       {isSelected && !isEditing && (
         <>
           {/* Selection ring */}
-          {(object.type === 'arrow' || object.type === 'line') && object.geometry.points ? (
+          {(object.type === COT.Arrow || object.type === COT.Line) && object.geometry.points ? (
             <path
               d={`M ${object.geometry.points.map((p) => `${p.x},${p.y}`).join(' L ')}`}
               fill="none"
@@ -822,11 +822,11 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           )}
 
           {/* Resize handles */}
-          {(object.type === 'rectangle' ||
-            object.type === 'diamond' ||
-            object.type === 'ellipse' ||
-            object.type === 'group' ||
-            object.type === 'text') && (
+          {(object.type === COT.Rectangle ||
+            object.type === COT.Diamond ||
+            object.type === COT.Ellipse ||
+            object.type === COT.Group ||
+            object.type === COT.Text) && (
             <>
               {/* Edge handles */}
               {['n', 's', 'e', 'w'].map((id) => (
@@ -859,7 +859,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
           )}
 
           {/* Arrow points handles */}
-          {(object.type === 'arrow' || object.type === 'line') && object.geometry.points && (
+          {(object.type === COT.Arrow || object.type === COT.Line) && object.geometry.points && (
             <>
               {object.geometry.points.map((p, i) => (
                 <PointHandle
@@ -879,10 +879,10 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       )}
 
       {/* Anchor points for arrows */}
-      {(object.type === 'rectangle' || object.type === 'diamond' || object.type === 'ellipse') &&
+      {([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(object.type) &&
         (isSelected ||
-          ui.activeTool === 'arrow' ||
-          ui.activeTool === 'line' ||
+          ui.activeTool === Tool.Arrow ||
+          ui.activeTool === Tool.Line ||
           isAnyArrowOrLineSelected) &&
         !isConnectedToSelectedArrow && (
           <>
@@ -896,10 +896,10 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                 key={a.id}
                 cx={a.cx}
                 cy={a.cy}
-                r={ui.activeTool === 'arrow' || ui.activeTool === 'line' ? 6 : 4}
+                r={ui.activeTool === Tool.Arrow || ui.activeTool === Tool.Line ? 6 : 4}
                 fill="#18181b"
                 stroke={
-                  ui.activeTool === 'arrow' || ui.activeTool === 'line' ? '#60a5fa' : '#3b82f6'
+                  ui.activeTool === Tool.Arrow || ui.activeTool === Tool.Line ? '#60a5fa' : '#3b82f6'
                 }
                 strokeWidth={2}
                 data-anchor="true"

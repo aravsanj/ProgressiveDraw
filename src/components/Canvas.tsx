@@ -1,13 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGesture } from '@use-gesture/react';
-import type { CanvasObjectType, Connection } from '../types';
+import { COT, Tool, type Connection } from '../types';
 import { useWhiteboard } from '../store/useWhiteboard';
 import { ObjectRenderer } from './ObjectRenderer';
 import { AnimatePresence } from 'framer-motion';
 
 export const Canvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isPanning, setIsPanning] = useState(false);
   const [ctrlPressed, setCtrlPressed] = useState(false);
   const {
     ui,
@@ -21,7 +20,9 @@ export const Canvas: React.FC = () => {
     clearSelection,
     currentFrame,
     setEditingObject,
+    setIsPanning,
   } = useWhiteboard();
+  const { isPanning } = ui;
   const [drawingId, setDrawingId] = useState<string | null>(null);
   const [selectionRect, setSelectionRect] = useState<{
     x: number;
@@ -33,7 +34,7 @@ export const Canvas: React.FC = () => {
   const mousePosRef = useRef<{ x: number; y: number } | null>(null);
   const isPlacingDuplicatedRef = useRef(false);
   const pendingDrawRef = useRef<{
-    type: CanvasObjectType;
+    type: COT;
     x: number;
     y: number;
     startConnection?: Connection;
@@ -219,7 +220,7 @@ export const Canvas: React.FC = () => {
         if (e.shiftKey) {
           // Ungroup all selected groups
           const groupsToUngroup = selectedObjectIds.filter(
-            (id) => state.objects[id]?.type === 'group',
+            (id) => state.objects[id]?.type === COT.Group,
           );
           groupsToUngroup.forEach((id) => state.ungroupObjects(id));
         } else {
@@ -241,14 +242,14 @@ export const Canvas: React.FC = () => {
         const key = e.key.toLowerCase();
         const setTool = useWhiteboard.getState().setTool;
 
-        if (key === '1' || key === 'v') setTool('select');
-        else if (key === '2' || key === 'r') setTool('rectangle');
-        else if (key === '3' || key === 'd') setTool('diamond');
-        else if (key === '4' || key === 'o') setTool('ellipse');
-        else if (key === '5' || key === 'a') setTool('arrow');
-        else if (key === '6' || key === 'l') setTool('line');
+        if (key === '1' || key === 'v') setTool(Tool.Select);
+        else if (key === '2' || key === 'r') setTool(Tool.Rectangle);
+        else if (key === '3' || key === 'd') setTool(Tool.Diamond);
+        else if (key === '4' || key === 'o') setTool(Tool.Ellipse);
+        else if (key === '5' || key === 'a') setTool(Tool.Arrow);
+        else if (key === '6' || key === 'l') setTool(Tool.Line);
         else if (key === '8' || key === 't') {
-          setTool('text');
+          setTool(Tool.Text);
           // Important: Don't prevent default here if t is pressed,
           // but we already checked !isContentEditable, so it should be fine.
         }
@@ -294,83 +295,100 @@ export const Canvas: React.FC = () => {
   useGesture(
     {
       onDrag: ({ active, delta: [dx, dy], buttons, ctrlKey, xy: [cx, cy] }) => {
-        const isPanningButton = buttons === 4 || (buttons === 1 && ctrlKey);
-        if (isPanningButton) {
-          setPan((p) => ({
-            x: p.x + dx,
-            y: p.y + dy,
-          }));
-          setIsPanning(active);
-        } else if (!drawingId && pendingDrawRef.current && active) {
-          const { type, x, y, startConnection } = pendingDrawRef.current;
-          const id = addObject({
-            type,
-            geometry: {
-              x,
-              y,
-              width: ['rectangle', 'diamond', 'ellipse'].includes(type) ? 1 : undefined,
-              height: ['rectangle', 'diamond', 'ellipse'].includes(type) ? 1 : undefined,
-              points:
-                type === 'arrow' || type === 'line'
-                  ? [
-                      { x, y },
-                      { x, y },
-                    ]
-                  : undefined,
-            },
-            style: {
-              stroke: '#e4e4e7',
-              // Default fill for closed shapes
-              fill: ['rectangle', 'diamond', 'ellipse'].includes(type)
-                ? 'rgba(255,255,255,0.05)'
-                : undefined,
-              fontSize: type === 'arrow' || type === 'line' ? 12 : undefined,
-            },
-            appearFrame: currentFrame,
-            text: '',
-            startConnection,
-          });
-          setDrawingId(id);
-          selectObject(id);
-          pendingDrawRef.current = null;
-        } else if (drawingId && startPosRef.current) {
-          const { x, y } = getCanvasCoords(cx, cy);
-          const obj = objects[drawingId];
-          if (!obj) return;
 
-          const start = startPosRef.current;
+        const isStillDragging = active;
+        const isDraggingEnd = !active;
+        const isPanningAction = buttons === 4 || (buttons === 1 && ctrlKey);
+        const isCreatingNewObject = !drawingId && pendingDrawRef.current && isStillDragging;
+        const isUpdatingObject = !!(drawingId && startPosRef.current);
+        const isDrawingSelectionRect = ui.activeTool === Tool.Select && startPosRef.current && isStillDragging;
 
-          if (['rectangle', 'diamond', 'ellipse'].includes(obj.type)) {
-            updateObject(drawingId, {
+
+        switch (true) {
+          case isPanningAction:
+            setPan((p) => ({
+              x: p.x + dx,
+              y: p.y + dy,
+            }));
+            setIsPanning(true);
+            break;
+
+          case isCreatingNewObject: {
+            const { type, x, y, startConnection } = pendingDrawRef.current!;
+            const id = addObject({
+              type,
               geometry: {
-                ...obj.geometry,
-                width: Math.abs(x - start.x),
-                height: Math.abs(y - start.y),
-                x: Math.min(x, start.x),
-                y: Math.min(y, start.y),
+                x,
+                y,
+                width: ([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(type) ? 1 : undefined,
+                height: ([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(type) ? 1 : undefined,
+                points:
+                  type === COT.Arrow || type === COT.Line
+                    ? [
+                        { x, y },
+                        { x, y },
+                      ]
+                    : undefined,
               },
+              style: {
+                stroke: '#e4e4e7',
+                fill: ([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(type)
+                  ? 'rgba(255,255,255,0.05)'
+                  : undefined,
+                fontSize: type === COT.Arrow || type === COT.Line ? 12 : undefined,
+              },
+              appearFrame: currentFrame,
+              text: '',
+              startConnection,
             });
-          } else if (obj.type === 'arrow' || obj.type === 'line') {
-            updateArrowPreview(drawingId, x, y, start);
+            setDrawingId(id);
+            selectObject(id);
+            pendingDrawRef.current = null;
+            break;
           }
-        } else if (ui.activeTool === 'select' && startPosRef.current && active) {
-          const { x, y } = getCanvasCoords(cx, cy);
-          const start = startPosRef.current;
-          setSelectionRect({
-            x: Math.min(x, start.x),
-            y: Math.min(y, start.y),
-            width: Math.abs(x - start.x),
-            height: Math.abs(y - start.y),
-          });
+
+          case isUpdatingObject: {
+            const { x, y } = getCanvasCoords(cx, cy);
+            const obj = objects[drawingId!];
+            if (!obj) break;
+
+            const start = startPosRef.current!;
+            if (([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(obj.type)) {
+              updateObject(drawingId!, {
+                geometry: {
+                  ...obj.geometry,
+                  width: Math.abs(x - start.x),
+                  height: Math.abs(y - start.y),
+                  x: Math.min(x, start.x),
+                  y: Math.min(y, start.y),
+                },
+              });
+            } else if (obj.type === COT.Arrow || obj.type === COT.Line) {
+              updateArrowPreview(drawingId!, x, y, start);
+            }
+            break;
+          }
+
+          case isDrawingSelectionRect: {
+            const { x, y } = getCanvasCoords(cx, cy);
+            const start = startPosRef.current!;
+            setSelectionRect({
+              x: Math.min(x, start.x),
+              y: Math.min(y, start.y),
+              width: Math.abs(x - start.x),
+              height: Math.abs(y - start.y),
+            });
+            break;
+          }
         }
 
-        if (!active) {
-          if (ui.activeTool === 'select' && selectionRect) {
+        if (isDraggingEnd) {
+          if (ui.activeTool === Tool.Select && selectionRect) {
             const selectedIds = Object.values(objects)
               .filter((obj) => {
                 // If it's a rectangle, check if it's within the selection rect
                 // If it's a closed shape, check intersection
-                if (['rectangle', 'diamond', 'ellipse'].includes(obj.type)) {
+                if (([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(obj.type)) {
                   const { x, y, width = 0, height = 0 } = obj.geometry;
                   return (
                     x < selectionRect.x + selectionRect.width &&
@@ -380,7 +398,7 @@ export const Canvas: React.FC = () => {
                   );
                 }
                 // If it's an arrow or line, check points
-                if ((obj.type === 'arrow' || obj.type === 'line') && obj.geometry.points) {
+                if ((obj.type === COT.Arrow || obj.type === COT.Line) && obj.geometry.points) {
                   return obj.geometry.points.some(
                     (p) =>
                       p.x >= selectionRect.x &&
@@ -390,7 +408,7 @@ export const Canvas: React.FC = () => {
                   );
                 }
                 // Text
-                if (obj.type === 'text') {
+                if (obj.type === COT.Text) {
                   const { x, y } = obj.geometry;
                   return (
                     x >= selectionRect.x &&
@@ -422,7 +440,7 @@ export const Canvas: React.FC = () => {
           // Only clear drawingId for non-connector objects
           // Arrows/lines stay active until the second click
           const obj = drawingId ? objects[drawingId] : null;
-          if (!obj || (obj.type !== 'arrow' && obj.type !== 'line')) {
+          if (!obj || (obj.type !== COT.Arrow && obj.type !== COT.Line)) {
             setDrawingId(null);
             startPosRef.current = null;
           }
@@ -443,7 +461,7 @@ export const Canvas: React.FC = () => {
 
         if (drawingId && startPosRef.current) {
           const obj = objects[drawingId];
-          if (obj && (obj.type === 'arrow' || obj.type === 'line')) {
+          if (obj && (obj.type === COT.Arrow || obj.type === COT.Line)) {
             updateArrowPreview(drawingId, x, y, startPosRef.current);
           }
         }
@@ -516,14 +534,14 @@ export const Canvas: React.FC = () => {
         } else if (
           drawingId &&
           objects[drawingId] &&
-          (objects[drawingId].type === 'arrow' || objects[drawingId].type === 'line') &&
+          (objects[drawingId].type === COT.Arrow || objects[drawingId].type === COT.Line) &&
           e.button === 0
         ) {
           // Finalize arrow/line on second click
           setDrawingId(null);
           startPosRef.current = null;
           e.stopPropagation();
-        } else if (ui.activeTool === 'select' && e.button === 0 && !isAnchor) {
+        } else if (ui.activeTool === Tool.Select && e.button === 0 && !isAnchor) {
           // Clear selection when clicking the background
           if (target.getAttribute('data-bg') === 'true' || target === containerRef.current) {
             clearSelection();
@@ -532,7 +550,7 @@ export const Canvas: React.FC = () => {
           }
         } else if (
           e.button === 0 &&
-          ((ui.activeTool !== 'select' &&
+          ((ui.activeTool !== Tool.Select &&
             (target.getAttribute('data-bg') === 'true' || target === containerRef.current)) ||
             (isAnchor && !isResizeHandle))
         ) {
@@ -540,22 +558,22 @@ export const Canvas: React.FC = () => {
           if (useWhiteboard.getState().ui.selectedObjectIds.length > 0 && isBg) {
             clearSelection();
             // For arrow and line, we want to deselect first, then click again to draw
-            if (ui.activeTool === 'arrow' || ui.activeTool === 'line') {
+            if (ui.activeTool === Tool.Arrow || ui.activeTool === Tool.Line) {
               return;
             }
           }
 
           let { x, y } = getCanvasCoords(e.clientX, e.clientY);
-          let type: CanvasObjectType = ui.activeTool as CanvasObjectType;
+          let type: COT = ui.activeTool as unknown as COT;
           let startConnection = undefined;
 
           if (isAnchor && !isResizeHandle) {
             // If we are already in line mode, stay in line mode. Otherwise default to arrow.
-            if (ui.activeTool !== 'line') {
-              type = 'arrow';
-              useWhiteboard.getState().setTool('arrow');
+            if (ui.activeTool !== Tool.Line) {
+              type = COT.Arrow;
+              useWhiteboard.getState().setTool(Tool.Arrow);
             } else {
-              type = 'line'; // Keep existing tool
+              type = COT.Line; // Keep existing tool
             }
             const objId = target.getAttribute('data-object-id')!;
             const anchorId = target.getAttribute('data-anchor-id')! as Connection['anchorId'];
@@ -577,13 +595,13 @@ export const Canvas: React.FC = () => {
               }
               startConnection = { objectId: objId, anchorId };
             }
-          } else if (type === 'arrow' || type === 'line') {
+          } else if (type === COT.Arrow || type === COT.Line) {
             const SNAP_THRESHOLD = 25 / ui.zoom;
             for (const otherObj of Object.values(objects)) {
               if (
-                otherObj.type === 'rectangle' ||
-                otherObj.type === 'diamond' ||
-                otherObj.type === 'ellipse'
+                otherObj.type === COT.Rectangle ||
+                otherObj.type === COT.Diamond ||
+                otherObj.type === COT.Ellipse
               ) {
                 const { x: ox, y: oy, width = 0, height = 0 } = otherObj.geometry;
                 const anchors: { id: 'n' | 's' | 'e' | 'w'; x: number; y: number }[] = [
@@ -606,7 +624,7 @@ export const Canvas: React.FC = () => {
             }
           }
 
-          if (type === 'arrow' || type === 'line') {
+          if (type === COT.Arrow || type === COT.Line) {
             const id = addObject({
               type,
               geometry: {
@@ -628,7 +646,7 @@ export const Canvas: React.FC = () => {
             setDrawingId(id);
             selectObject(id);
             startPosRef.current = { x, y };
-          } else if (type === 'rectangle' || type === 'diamond' || type === 'ellipse') {
+          } else if (type === COT.Rectangle || type === COT.Diamond || type === COT.Ellipse) {
             pendingDrawRef.current = { type, x, y, startConnection };
             startPosRef.current = { x, y };
           } else {
@@ -637,8 +655,8 @@ export const Canvas: React.FC = () => {
               geometry: {
                 x,
                 y,
-                width: type === 'text' ? 200 : undefined,
-                height: type === 'text' ? 40 : undefined,
+                width: type === COT.Text ? 200 : undefined,
+                height: type === COT.Text ? 40 : undefined,
                 points: undefined,
               },
               style: {
@@ -647,13 +665,13 @@ export const Canvas: React.FC = () => {
                 fontSize: 24,
               },
               appearFrame: currentFrame,
-              text: type === 'text' ? '' : undefined,
+              text: type === COT.Text ? '' : undefined,
               startConnection,
             });
 
             setDrawingId(id);
             selectObject(id);
-            if (type === 'text') {
+            if (type === COT.Text) {
               setEditingObject(id);
             }
             startPosRef.current = { x, y };
@@ -669,7 +687,7 @@ export const Canvas: React.FC = () => {
         }
         setIsPanning(false);
         const obj = drawingId ? objects[drawingId] : null;
-        if (!obj || (obj.type !== 'arrow' && obj.type !== 'line')) {
+        if (!obj || (obj.type !== COT.Arrow && obj.type !== COT.Line)) {
           setDrawingId(null);
           startPosRef.current = null;
         }
@@ -699,9 +717,9 @@ export const Canvas: React.FC = () => {
 
     for (const otherObj of Object.values(objects)) {
       if (
-        (otherObj.type === 'rectangle' ||
-          otherObj.type === 'diamond' ||
-          otherObj.type === 'ellipse') &&
+        (otherObj.type === COT.Rectangle ||
+          otherObj.type === COT.Diamond ||
+          otherObj.type === COT.Ellipse) &&
         otherObj.id !== id &&
         otherObj.id !== objects[id]?.startConnection?.objectId
       ) {
@@ -742,7 +760,7 @@ export const Canvas: React.FC = () => {
           ? 'cursor-grabbing'
           : ctrlPressed
             ? 'cursor-grab'
-            : ui.activeTool !== 'select'
+            : ui.activeTool !== Tool.Select
               ? 'cursor-crosshair'
               : 'cursor-default'
       }`}
@@ -802,7 +820,7 @@ export const Canvas: React.FC = () => {
             )}
 
             {ui.selectedObjectIds.length === 1 &&
-              objects[ui.selectedObjectIds[0]]?.type === 'group' && (
+              objects[ui.selectedObjectIds[0]]?.type === COT.Group && (
                 <>
                   {objects[ui.selectedObjectIds[0]].children?.map((childId, index) => {
                     const child = objects[childId];

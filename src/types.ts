@@ -1,4 +1,18 @@
-export type CanvasObjectType = 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'text' | 'group';
+export const CanvasObjectType = {
+  Rectangle: 'rectangle',
+  Diamond: 'diamond',
+  Ellipse: 'ellipse',
+  Arrow: 'arrow',
+  Line: 'line',
+  Text: 'text',
+  Group: 'group',
+} as const;
+
+export type CanvasObjectType = typeof CanvasObjectType[keyof typeof CanvasObjectType];
+
+export const COT = CanvasObjectType;
+export type COT = CanvasObjectType;
+
 
 export type Connection = {
   objectId: string;
@@ -10,7 +24,6 @@ export type CanvasObject = {
   type: CanvasObjectType;
   parentId?: string;
   children?: string[];
-
   geometry: {
     x: number;
     y: number;
@@ -18,25 +31,29 @@ export type CanvasObject = {
     height?: number;
     points?: { x: number; y: number }[];
   };
-
   style: {
     stroke?: string;
     fill?: string;
     fontSize?: number;
   };
-
-  text?: string; // Added specifically for text objects
-
+  text?: string; 
   appearFrame: number;
-  disappearFrame?: number; // defaults to Infinity
- 
-
+  disappearFrame?: number; 
   startConnection?: Connection;
   endConnection?: Connection;
 };
 
-export type Tool = 'select' | 'rectangle' | 'diamond' | 'ellipse' | 'arrow' | 'line' | 'text';
+export const Tool = {
+  Select: 'select',
+  Rectangle: 'rectangle',
+  Diamond: 'diamond',
+  Ellipse: 'ellipse',
+  Arrow: 'arrow',
+  Line: 'line',
+  Text: 'text',
+} as const;
 
+export type Tool = typeof Tool[keyof typeof Tool];
 
 export type WhiteboardUiState = {
   mode: 'edit' | 'present';
@@ -44,6 +61,7 @@ export type WhiteboardUiState = {
   spotlightEnabled: boolean;
   zoom: number;
   pan: { x: number; y: number };
+  isPanning: boolean;
   selectedObjectIds: string[];
   editingObjectId?: string | null;
 };
