@@ -7,7 +7,6 @@ import { AnimatePresence } from 'framer-motion';
 
 export const Canvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [ctrlPressed, setCtrlPressed] = useState(false);
   const {
     ui,
     setPan,
@@ -21,8 +20,9 @@ export const Canvas: React.FC = () => {
     currentFrame,
     setEditingObject,
     setIsPanning,
+    setCtrlPressed,
   } = useWhiteboard();
-  const { isPanning } = ui;
+  const { isPanning, ctrlPressed } = ui;
   const [drawingId, setDrawingId] = useState<string | null>(null);
   const [selectionRect, setSelectionRect] = useState<{
     x: number;
@@ -295,14 +295,13 @@ export const Canvas: React.FC = () => {
   useGesture(
     {
       onDrag: ({ active, delta: [dx, dy], buttons, ctrlKey, xy: [cx, cy] }) => {
-
         const isStillDragging = active;
         const isDraggingEnd = !active;
         const isPanningAction = buttons === 4 || (buttons === 1 && ctrlKey);
         const isCreatingNewObject = !drawingId && pendingDrawRef.current && isStillDragging;
         const isUpdatingObject = !!(drawingId && startPosRef.current);
-        const isDrawingSelectionRect = ui.activeTool === Tool.Select && startPosRef.current && isStillDragging;
-
+        const isDrawingSelectionRect =
+          ui.activeTool === Tool.Select && startPosRef.current && isStillDragging;
 
         switch (true) {
           case isPanningAction:
@@ -313,6 +312,8 @@ export const Canvas: React.FC = () => {
             setIsPanning(true);
             break;
 
+          // Creates initial object with 1px size for Rectangle, Diamond and Ellipse before handing it to isUpdatingObject.
+          // Arrows and Lines are created onPointerDown directly with proper points.
           case isCreatingNewObject: {
             const { type, x, y, startConnection } = pendingDrawRef.current!;
             const id = addObject({
@@ -320,8 +321,12 @@ export const Canvas: React.FC = () => {
               geometry: {
                 x,
                 y,
-                width: ([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(type) ? 1 : undefined,
-                height: ([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(type) ? 1 : undefined,
+                width: ([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(type)
+                  ? 1
+                  : undefined,
+                height: ([COT.Rectangle, COT.Diamond, COT.Ellipse] as COT[]).includes(type)
+                  ? 1
+                  : undefined,
                 points:
                   type === COT.Arrow || type === COT.Line
                     ? [

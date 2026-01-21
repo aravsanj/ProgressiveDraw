@@ -62,6 +62,7 @@ export type WhiteboardUiState = {
   zoom: number;
   pan: { x: number; y: number };
   isPanning: boolean;
+  ctrlPressed: boolean;
   selectedObjectIds: string[];
   editingObjectId?: string | null;
 };

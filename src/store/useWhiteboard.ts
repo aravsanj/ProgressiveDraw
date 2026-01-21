@@ -28,6 +28,7 @@ interface WhiteboardActions {
   clearSelection: () => void;
   setTool: (tool: Tool) => void;
   setIsPanning: (isPanning: boolean) => void;
+  setCtrlPressed: (ctrlPressed: boolean) => void;
   deleteObjects: (ids: string[]) => void;
   setEditingObject: (id: string | null) => void;
   moveObjects: (ids: string[], dx: number, dy: number, saveHistory?: boolean) => void;
@@ -106,6 +107,7 @@ export const useWhiteboard = create<
         zoom: 1,
         pan: { x: 0, y: 0 },
         isPanning: false,
+        ctrlPressed: false,
         selectedObjectIds: [],
         editingObjectId: null,
       },
@@ -669,6 +671,8 @@ export const useWhiteboard = create<
       setTool: (tool) => set((state) => ({ ui: { ...state.ui, activeTool: tool } })),
 
       setIsPanning: (isPanning) => set((state) => ({ ui: { ...state.ui, isPanning } })),
+
+      setCtrlPressed: (ctrlPressed) => set((state) => ({ ui: { ...state.ui, ctrlPressed } })),
 
       setEditingObject: (id) => set((state) => ({ ui: { ...state.ui, editingObjectId: id } })),
 
