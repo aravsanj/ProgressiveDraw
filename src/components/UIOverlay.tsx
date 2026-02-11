@@ -448,62 +448,117 @@ export const UIOverlay: React.FC = () => {
       )}
 
       {!singleSelection && selectedObjects.length > 1 && (
-        <div className="absolute right-4 top-20 bg-zinc-900 w-64 rounded-lg shadow-md p-4 pointer-events-auto border border-zinc-800 flex flex-col space-y-4 text-zinc-300">
-          <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-            <span className="font-bold text-sm uppercase text-zinc-500">
-              Multiple Selected ({selectedObjects.length})
-            </span>
-            <button
-              onClick={() => deleteObjects(ui.selectedObjectIds)}
-              className="text-red-500 hover:bg-red-950/30 p-1 rounded flex items-center space-x-2 text-xs cursor-pointer"
-            >
-              <Trash2 size={16} />
-              <span>Delete All</span>
-            </button>
-          </div>
-          <p className="text-xs text-zinc-500">
-            You can perform actions on all {selectedObjects.length} selected objects.
-          </p>
-
-          <div className="space-y-2 border-t border-zinc-800 pt-2">
-            <button
-              onClick={() => groupObjects(ui.selectedObjectIds)}
-              className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 rounded text-xs flex items-center justify-center space-x-2 transition-colors cursor-pointer"
-            >
-              <Layers size={14} />
-              <span>Group Objects</span>
-            </button>
-
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-zinc-500">Appear Frame</span>
-              <input
-                type="number"
-                placeholder="Frame #"
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (!isNaN(val)) {
-                    useWhiteboard.getState().saveHistory();
-                    updateObjects(ui.selectedObjectIds, { appearFrame: val });
-                  }
-                }}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm"
-              />
+        <div className="absolute right-4 top-20 bg-zinc-900/95 backdrop-blur-md w-72 rounded-xl shadow-2xl p-4 pointer-events-auto border border-zinc-800 flex flex-col space-y-4 text-zinc-300">
+          <div className="flex flex-col gap-3 border-b border-zinc-800 pb-4">
+            <div className="flex justify-between items-start gap-4">
+              <div className="flex flex-col min-w-0">
+                <span className="font-bold text-[10px] uppercase text-zinc-500 tracking-widest leading-tight">
+                  Selection
+                </span>
+                <span className="text-sm font-bold text-zinc-100">
+                  {selectedObjects.length} Objects Selected
+                </span>
+              </div>
+              <button
+                onClick={() => deleteObjects(selectedObjects.map((o) => o.id))}
+                className="shrink-0 text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer border border-red-500/20 active:scale-95"
+                title="Delete all selected objects"
+              >
+                <Trash2 size={14} />
+                <span className="whitespace-nowrap">Delete All</span>
+              </button>
             </div>
+          </div>
 
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-zinc-500">Disappear Frame</span>
-              <input
-                type="number"
-                placeholder="∞ (never)"
-                onChange={(e) => {
-                  const val = e.target.value ? parseInt(e.target.value) : undefined;
-                  if (e.target.value === '' || !isNaN(val as number)) {
-                    useWhiteboard.getState().saveHistory();
-                    updateObjects(ui.selectedObjectIds, { disappearFrame: val });
-                  }
-                }}
-                className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm"
-              />
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block">
+              Quick Actions
+            </label>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={() => groupObjects(selectedObjects.map((o) => o.id))}
+                className="w-full bg-zinc-800/50 hover:bg-zinc-700/50 text-zinc-200 py-2.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer border border-zinc-700/50 active:scale-[0.98]"
+              >
+                <Layers size={14} className="text-blue-400" />
+                <span>Group Selected Items</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-zinc-800/50">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+                Batch Timing
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase">Appear</span>
+                <input
+                  type="number"
+                  placeholder="Frame #"
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (!isNaN(val)) {
+                      useWhiteboard.getState().saveHistory();
+                      updateObjects(ui.selectedObjectIds, { appearFrame: val });
+                    }
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 text-sm focus:border-blue-500/50 outline-none transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[10px] text-zinc-500 font-bold uppercase">Disappear</span>
+                <input
+                  type="number"
+                  placeholder="∞ (never)"
+                  onChange={(e) => {
+                    const val = e.target.value ? parseInt(e.target.value) : undefined;
+                    if (e.target.value === '' || !isNaN(val as number)) {
+                      useWhiteboard.getState().saveHistory();
+                      updateObjects(ui.selectedObjectIds, { disappearFrame: val });
+                    }
+                  }}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-zinc-200 text-sm focus:border-blue-500/50 outline-none transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-zinc-800/50">
+            <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider block">
+              Selected Items
+            </label>
+            <div className="space-y-1 max-h-40 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+              {selectedObjects.map((obj, index) => {
+                let Icon = Square;
+                if (obj.type === COT.Diamond) Icon = Diamond;
+                else if (obj.type === COT.Ellipse) Icon = Circle;
+                else if (obj.type === COT.Arrow) Icon = ArrowRight;
+                else if (obj.type === COT.Line) Icon = Minus;
+                else if (obj.type === COT.Text) Icon = Type;
+                else if (obj.type === COT.Group) Icon = Layers;
+
+                return (
+                  <div
+                    key={obj.id}
+                    className="flex items-center gap-2 bg-zinc-950/30 p-2 rounded-lg border border-zinc-800/30 hover:border-zinc-700/50 transition-colors group cursor-default"
+                  >
+                    <span className="text-[10px] text-zinc-600 font-mono w-4">{index + 1}</span>
+                    <Icon size={12} className="text-zinc-500" />
+                    <span className="text-xs text-zinc-400 truncate flex-1 leading-none">
+                      {obj.text || obj.type}
+                    </span>
+                    <button
+                      onClick={() => selectObject(obj.id)}
+                      className="opacity-0 group-hover:opacity-100 text-[10px] text-blue-400 font-bold uppercase tracking-tighter hover:underline cursor-pointer transition-opacity"
+                    >
+                      View
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
