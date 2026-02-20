@@ -22,6 +22,8 @@ import {
   Pen,
   Image as ImageIcon,
   Eraser,
+  Maximize,
+  Minimize,
 } from 'lucide-react';
 
 export const UIOverlay: React.FC = () => {
@@ -51,8 +53,11 @@ export const UIOverlay: React.FC = () => {
   const selectedObjects = ui.selectedObjectIds.map((id) => objects[id]).filter(Boolean);
   const singleSelection = selectedObjects.length === 1 ? selectedObjects[0] : null;
 
+  const [isFullscreen, setIsFullscreen] = React.useState(!!document.fullscreenElement);
+
   React.useEffect(() => {
     const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
       if (!document.fullscreenElement && ui.mode === 'present') {
         setMode('edit');
       }
@@ -191,6 +196,19 @@ export const UIOverlay: React.FC = () => {
             }}
           />
         </label>
+        <button
+          className="p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer"
+          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+          onClick={() => {
+            if (isFullscreen) {
+              document.exitFullscreen?.();
+            } else {
+              document.documentElement.requestFullscreen?.();
+            }
+          }}
+        >
+          {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
+        </button>
       </div>
 
       {/* Left Toolbar: Object Creation */}
