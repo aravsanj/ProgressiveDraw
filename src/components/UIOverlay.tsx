@@ -146,7 +146,7 @@ export const UIOverlay: React.FC = () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `drawing-${new Date().toISOString().slice(0, 10)}.prodraw`;
+            a.download = `drawing-${new Date().toISOString().slice(0, 10)}.progressivedraw`;
             a.click();
             URL.revokeObjectURL(url);
           }}
@@ -161,10 +161,18 @@ export const UIOverlay: React.FC = () => {
           <input
             type="file"
             className="hidden"
-            accept=".prodraw,.json"
+            accept=".progressivedraw"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (!file) return;
+
+              // Check file extension
+              if (!file.name.endsWith('.progressivedraw')) {
+                alert('Please select a .progressivedraw file');
+                e.target.value = '';
+                return;
+              }
+
               const reader = new FileReader();
               reader.onload = (event) => {
                 try {
