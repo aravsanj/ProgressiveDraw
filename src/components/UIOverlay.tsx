@@ -51,6 +51,27 @@ export const UIOverlay: React.FC = () => {
   const selectedObjects = ui.selectedObjectIds.map((id) => objects[id]).filter(Boolean);
   const singleSelection = selectedObjects.length === 1 ? selectedObjects[0] : null;
 
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && ui.mode === 'present') {
+        setMode('edit');
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [ui.mode, setMode]);
+
+  const toggleFullscreen = (targetMode: 'edit' | 'present') => {
+    if (targetMode === 'present') {
+      document.documentElement.requestFullscreen?.();
+    } else {
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.();
+      }
+    }
+    setMode(targetMode);
+  };
+
   if (ui.mode === 'present') {
     return (
       <div className="absolute bottom-6 right-6 flex items-center space-x-4">
@@ -77,7 +98,7 @@ export const UIOverlay: React.FC = () => {
           </button>
         </div>
         <button
-          onClick={() => setMode('edit')}
+          onClick={() => toggleFullscreen('edit')}
           className="bg-zinc-900/90 p-3 rounded-full shadow hover:bg-zinc-800 text-zinc-100 border border-zinc-700 cursor-pointer"
           title="Exit Presenter Mode"
         >
@@ -96,13 +117,13 @@ export const UIOverlay: React.FC = () => {
             'p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer',
             ui.mode === 'edit' && 'bg-zinc-800 text-blue-400',
           )}
-          onClick={() => setMode('edit')}
+          onClick={() => toggleFullscreen('edit')}
         >
           Edit
         </button>
         <button
           className="p-2 rounded hover:bg-zinc-800 text-zinc-400 cursor-pointer"
-          onClick={() => setMode('present')}
+          onClick={() => toggleFullscreen('present')}
         >
           <Play size={16} className="mr-2 inline" /> Present
         </button>
