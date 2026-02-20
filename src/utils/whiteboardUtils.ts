@@ -70,54 +70,54 @@ export const getRecursiveChildrenIds = (
  */
 export const getUpdatedConnections = (
   modifiedObj: CanvasObject,
-  objects: Record<string, CanvasObject>
+  objects: Record<string, CanvasObject>,
 ): Record<string, CanvasObject> => {
-   const updatedObjects: Record<string, CanvasObject> = {};
-   
-   if (
-      modifiedObj.type === COT.Rectangle ||
-      modifiedObj.type === COT.Diamond ||
-      modifiedObj.type === COT.Ellipse ||
-      modifiedObj.type === COT.Group
-    ) {
-      const getAnchorPos = (obj: CanvasObject, anchorId: string) => {
-        const { x, y, width = 0, height = 0 } = obj.geometry;
-        switch (anchorId) {
-          case 'n':
-            return { x: x + width / 2, y };
-          case 's':
-            return { x: x + width / 2, y: y + height };
-          case 'e':
-            return { x: x + width, y: y + height / 2 };
-          case 'w':
-            return { x, y: y + height / 2 };
-          default:
-            return { x, y };
+  const updatedObjects: Record<string, CanvasObject> = {};
+
+  if (
+    modifiedObj.type === COT.Rectangle ||
+    modifiedObj.type === COT.Diamond ||
+    modifiedObj.type === COT.Ellipse ||
+    modifiedObj.type === COT.Group
+  ) {
+    const getAnchorPos = (obj: CanvasObject, anchorId: string) => {
+      const { x, y, width = 0, height = 0 } = obj.geometry;
+      switch (anchorId) {
+        case 'n':
+          return { x: x + width / 2, y };
+        case 's':
+          return { x: x + width / 2, y: y + height };
+        case 'e':
+          return { x: x + width, y: y + height / 2 };
+        case 'w':
+          return { x, y: y + height / 2 };
+        default:
+          return { x, y };
+      }
+    };
+
+    Object.values(objects).forEach((other) => {
+      if (other.type === COT.Arrow || other.type === COT.Line) {
+        let pointsMoved = false;
+        const points = [...(other.geometry.points || [])];
+
+        if (other.startConnection?.objectId === modifiedObj.id) {
+          points[0] = getAnchorPos(modifiedObj, other.startConnection.anchorId);
+          pointsMoved = true;
         }
-      };
-
-      Object.values(objects).forEach((other) => {
-        if (other.type === COT.Arrow || other.type === COT.Line) {
-          let pointsMoved = false;
-          const points = [...(other.geometry.points || [])];
-
-          if (other.startConnection?.objectId === modifiedObj.id) {
-            points[0] = getAnchorPos(modifiedObj, other.startConnection.anchorId);
-            pointsMoved = true;
-          }
-          if (other.endConnection?.objectId === modifiedObj.id) {
-            points[points.length - 1] = getAnchorPos(modifiedObj, other.endConnection.anchorId);
-            pointsMoved = true;
-          }
-
-          if (pointsMoved) {
-            updatedObjects[other.id] = {
-              ...other,
-              geometry: { ...other.geometry, points },
-            };
-          }
+        if (other.endConnection?.objectId === modifiedObj.id) {
+          points[points.length - 1] = getAnchorPos(modifiedObj, other.endConnection.anchorId);
+          pointsMoved = true;
         }
-      });
-    }
-    return updatedObjects;
+
+        if (pointsMoved) {
+          updatedObjects[other.id] = {
+            ...other,
+            geometry: { ...other.geometry, points },
+          };
+        }
+      }
+    });
+  }
+  return updatedObjects;
 };

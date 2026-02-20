@@ -61,12 +61,10 @@ export const createClipboardSlice: StateCreator<StoreWithDeps, [], [], Clipboard
         newObj.geometry.x = (newObj.geometry.x || 0) + 20;
         newObj.geometry.y = (newObj.geometry.y || 0) + 20;
         if (newObj.geometry.points) {
-          newObj.geometry.points = newObj.geometry.points.map(
-            (p: { x: number; y: number }) => ({
-              x: p.x + 20,
-              y: p.y + 20,
-            }),
-          );
+          newObj.geometry.points = newObj.geometry.points.map((p: { x: number; y: number }) => ({
+            x: p.x + 20,
+            y: p.y + 20,
+          }));
         }
       }
 

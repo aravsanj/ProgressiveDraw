@@ -97,7 +97,10 @@ export const createObjectSlice: StateCreator<StoreWithDeps, [], [], ObjectSlice>
             newObject = { ...newObject, parentId: targetParentId };
             newObjects[id] = newObject;
 
-            const newBounds = calculateGroupBounds(newObjects, newObjects[targetParentId].children!);
+            const newBounds = calculateGroupBounds(
+              newObjects,
+              newObjects[targetParentId].children!,
+            );
             if (newBounds) {
               newObjects[targetParentId] = {
                 ...newObjects[targetParentId],
@@ -199,7 +202,7 @@ export const createObjectSlice: StateCreator<StoreWithDeps, [], [], ObjectSlice>
           const oldParentId = currentObj.parentId;
           // Remove from old parent
           if (oldParentId) {
-              removeFromOldParent(finalObjects, id, targetParentId);
+            removeFromOldParent(finalObjects, id, targetParentId);
           }
 
           // Add to new parent

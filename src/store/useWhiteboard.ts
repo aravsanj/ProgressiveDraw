@@ -13,11 +13,7 @@ import { createObjectSlice } from './objectSlice';
 import type { ObjectSlice } from './objectSlice';
 
 // Combine all slice interfaces
-export type WhiteboardStore = FrameSlice &
-  UiSlice &
-  HistorySlice &
-  ClipboardSlice &
-  ObjectSlice;
+export type WhiteboardStore = FrameSlice & UiSlice & HistorySlice & ClipboardSlice & ObjectSlice;
 
 export const useWhiteboard = create<WhiteboardStore>()(
   persist(
@@ -43,5 +39,3 @@ export const useWhiteboard = create<WhiteboardStore>()(
     },
   ),
 );
-
- 

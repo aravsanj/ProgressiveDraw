@@ -8,11 +8,10 @@ export const CanvasObjectType = {
   Group: 'group',
 } as const;
 
-export type CanvasObjectType = typeof CanvasObjectType[keyof typeof CanvasObjectType];
+export type CanvasObjectType = (typeof CanvasObjectType)[keyof typeof CanvasObjectType];
 
 export const COT = CanvasObjectType;
 export type COT = CanvasObjectType;
-
 
 export type Connection = {
   objectId: string;
@@ -36,9 +35,9 @@ export type CanvasObject = {
     fill?: string;
     fontSize?: number;
   };
-  text?: string; 
+  text?: string;
   appearFrame: number;
-  disappearFrame?: number; 
+  disappearFrame?: number;
   startConnection?: Connection;
   endConnection?: Connection;
 };
@@ -53,7 +52,7 @@ export const Tool = {
   Text: 'text',
 } as const;
 
-export type Tool = typeof Tool[keyof typeof Tool];
+export type Tool = (typeof Tool)[keyof typeof Tool];
 
 export type WhiteboardUiState = {
   mode: 'edit' | 'present';

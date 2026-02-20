@@ -688,7 +688,8 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                       ? 14
                       : 24),
                 lineHeight: object.type === COT.Arrow || object.type === COT.Line ? '1.3' : '1.5',
-                padding: object.type === COT.Arrow || object.type === COT.Line ? '2px 4px' : undefined,
+                padding:
+                  object.type === COT.Arrow || object.type === COT.Line ? '2px 4px' : undefined,
                 backgroundColor:
                   object.type === COT.Arrow || object.type === COT.Line ? '#09090b' : undefined, // Match arrow background
                 fontFamily: '"Outfit", sans-serif',
@@ -899,7 +900,9 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                 r={ui.activeTool === Tool.Arrow || ui.activeTool === Tool.Line ? 6 : 4}
                 fill="#18181b"
                 stroke={
-                  ui.activeTool === Tool.Arrow || ui.activeTool === Tool.Line ? '#60a5fa' : '#3b82f6'
+                  ui.activeTool === Tool.Arrow || ui.activeTool === Tool.Line
+                    ? '#60a5fa'
+                    : '#3b82f6'
                 }
                 strokeWidth={2}
                 data-anchor="true"
