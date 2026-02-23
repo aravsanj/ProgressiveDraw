@@ -26,6 +26,22 @@ import {
   Minimize,
 } from 'lucide-react';
 
+const STROKE_COLORS = [
+  { value: '#e4e4e7', label: 'White' },
+  { value: '#f9a8d4', label: 'Pink' },
+  { value: '#86efac', label: 'Green' },
+  { value: '#93c5fd', label: 'Blue' },
+  { value: '#fbbf24', label: 'Amber' },
+];
+
+const FILL_COLORS = [
+  { value: 'rgba(255,255,255,0.05)', label: 'Default' },
+  { value: 'rgba(63,63,70,0.15)', label: 'Zinc' },
+  { value: 'rgba(124,45,18,0.15)', label: 'Dark Orange' },
+  { value: 'rgba(20,83,45,0.15)', label: 'Dark Green' },
+  { value: 'rgba(30,58,138,0.15)', label: 'Dark Blue' },
+];
+
 export const UIOverlay: React.FC = () => {
   const {
     ui,
@@ -52,6 +68,91 @@ export const UIOverlay: React.FC = () => {
 
   const selectedObjects = ui.selectedObjectIds.map((id) => objects[id]).filter(Boolean);
   const singleSelection = selectedObjects.length === 1 ? selectedObjects[0] : null;
+
+  const DEFAULT_STROKE = '#e4e4e7';
+  const DEFAULT_FILL = 'rgba(255,255,255,0.05)';
+
+  const renderColorSection = (
+    activeStroke: string | null,
+    activeFill: string | null,
+    onStrokeChange: (c: string) => void,
+    onFillChange: (c: string) => void,
+    fillLabel = 'Background',
+  ) => (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <span className="text-[10px] text-zinc-500 font-bold uppercase">Stroke</span>
+        <div className="flex items-center gap-1.5">
+          {STROKE_COLORS.map(({ value, label }) => (
+            <button
+              key={value}
+              title={label}
+              onClick={() => onStrokeChange(value)}
+              className={cn(
+                'w-6 h-6 rounded border-2 cursor-pointer transition-all shrink-0',
+                activeStroke === value
+                  ? 'border-white ring-2 ring-white ring-offset-1 ring-offset-zinc-900 scale-110'
+                  : 'border-zinc-700 hover:border-zinc-500',
+              )}
+              style={{ backgroundColor: value }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <span className="text-[10px] text-zinc-500 font-bold uppercase">{fillLabel}</span>
+        <div className="flex items-center gap-1.5">
+          {FILL_COLORS.map(({ value, label }) => (
+            <button
+              key={value}
+              title={label}
+              onClick={() => onFillChange(value)}
+              className={cn(
+                'w-6 h-6 rounded border-2 cursor-pointer transition-all shrink-0',
+                activeFill === value
+                  ? 'border-white ring-2 ring-white ring-offset-1 ring-offset-zinc-900 scale-110'
+                  : 'border-zinc-700 hover:border-zinc-500',
+              )}
+              style={{ backgroundColor: value }}
+            ></button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const handleSingleColorChange = (field: 'stroke' | 'fill', color: string) => {
+    if (!singleSelection) return;
+    useWhiteboard.getState().saveHistory();
+    updateObject(singleSelection.id, { style: { ...singleSelection.style, [field]: color } });
+  };
+
+  const handleMultiColorChange = (field: 'stroke' | 'fill', color: string) => {
+    useWhiteboard.getState().saveHistory();
+    selectedObjects.forEach((obj) =>
+      updateObject(obj.id, { style: { ...obj.style, [field]: color } }),
+    );
+  };
+
+  const multiActiveStroke =
+    selectedObjects.length > 1
+      ? selectedObjects.every(
+          (o) =>
+            (o.style.stroke ?? DEFAULT_STROKE) ===
+            (selectedObjects[0].style.stroke ?? DEFAULT_STROKE),
+        )
+        ? (selectedObjects[0].style.stroke ?? DEFAULT_STROKE)
+        : null
+      : null;
+
+  const multiActiveFill =
+    selectedObjects.length > 1
+      ? selectedObjects.every(
+          (o) => (o.style.fill ?? DEFAULT_FILL) === (selectedObjects[0].style.fill ?? DEFAULT_FILL),
+        )
+        ? (selectedObjects[0].style.fill ?? DEFAULT_FILL)
+        : null
+      : null;
 
   const [isFullscreen, setIsFullscreen] = React.useState(!!document.fullscreenElement);
 
@@ -370,6 +471,14 @@ export const UIOverlay: React.FC = () => {
             </button>
           </div>
 
+          {renderColorSection(
+            singleSelection.style.stroke ?? DEFAULT_STROKE,
+            singleSelection.style.fill ?? DEFAULT_FILL,
+            (c) => handleSingleColorChange('stroke', c),
+            (c) => handleSingleColorChange('fill', c),
+            singleSelection.type === COT.Text ? 'Text Color' : 'Background',
+          )}
+
           <div className="space-y-2">
             <label className="text-xs font-bold text-zinc-500 block">Appearance Frames</label>
             <div className="grid grid-cols-2 gap-2">
@@ -530,6 +639,15 @@ export const UIOverlay: React.FC = () => {
                 <span>Group Selected Items</span>
               </button>
             </div>
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-zinc-800/50">
+            {renderColorSection(
+              multiActiveStroke,
+              multiActiveFill,
+              (c) => handleMultiColorChange('stroke', c),
+              (c) => handleMultiColorChange('fill', c),
+            )}
           </div>
 
           <div className="space-y-3 pt-2 border-t border-zinc-800/50">
