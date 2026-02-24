@@ -672,8 +672,8 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               className={cn(
                 'border-none outline-none cursor-text',
                 object.type === COT.Text
-                  ? 'text-[#e4e4e7] p-0 bg-transparent text-left min-w-[10px] min-h-[1em]'
-                  : 'text-white text-center overflow-hidden min-w-[10px]',
+                  ? 'p-0 bg-transparent text-left min-w-[10px] min-h-[1em]'
+                  : 'text-center overflow-hidden min-w-[10px]',
                 // Apply specific padding for arrows/lines to match ArrowShape
                 object.type === COT.Arrow || object.type === COT.Line ? 'rounded-[4px]' : 'p-1', // Removed w-full h-full to allow flex container to actually center the content
               )}
@@ -692,6 +692,10 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
                   object.type === COT.Arrow || object.type === COT.Line ? '2px 4px' : undefined,
                 backgroundColor:
                   object.type === COT.Arrow || object.type === COT.Line ? '#09090b' : undefined, // Match arrow background
+                color:
+                  object.type === COT.Text
+                    ? object.style.stroke || object.style.fill || '#e4e4e7'
+                    : object.style.stroke || '#ffffff',
                 fontFamily: '"Outfit", sans-serif',
                 wordBreak: 'break-word',
                 // Important: Match maxWidth logic from ArrowShape

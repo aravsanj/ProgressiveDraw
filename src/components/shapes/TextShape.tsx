@@ -36,7 +36,7 @@ export const TextShape: React.FC<Props> = ({ object, isEditing }) => {
         >
           <div
             style={{
-              color: style.fill || '#e4e4e7',
+              color: style.stroke || style.fill || '#e4e4e7',
               fontSize: `${fontSize}px`,
               fontFamily: '"Outfit", sans-serif',
               lineHeight: 1.5,

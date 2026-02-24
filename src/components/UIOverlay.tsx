@@ -78,60 +78,70 @@ export const UIOverlay: React.FC = () => {
     onStrokeChange: (c: string) => void,
     onFillChange: (c: string) => void,
     fillLabel = 'Background',
-  ) => (
-    <div className="space-y-3">
-      <div className="space-y-1.5">
-        <span className="text-[10px] text-zinc-500 font-bold uppercase">Stroke</span>
-        <div className="flex items-center gap-1.5">
-          {STROKE_COLORS.map(({ value, label }) => (
-            <button
-              key={value}
-              title={label}
-              onClick={() => onStrokeChange(value)}
-              className={cn(
-                'w-6 h-6 rounded border-2 cursor-pointer transition-all shrink-0',
-                activeStroke === value
-                  ? 'border-white ring-2 ring-white ring-offset-1 ring-offset-zinc-900 scale-110'
-                  : 'border-zinc-700 hover:border-zinc-500',
-              )}
-              style={{ backgroundColor: value }}
-            />
-          ))}
+    customFillColors?: { value: string; label: string }[],
+  ) => {
+    const fillColors = customFillColors || FILL_COLORS;
+    return (
+      <div className="space-y-3">
+        {activeStroke !== null && (
+          <div className="space-y-1.5">
+            <span className="text-[10px] text-zinc-500 font-bold uppercase">Stroke</span>
+            <div className="flex items-center gap-1.5">
+              {STROKE_COLORS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  title={label}
+                  onClick={() => onStrokeChange(value)}
+                  className={cn(
+                    'w-6 h-6 rounded border-2 cursor-pointer transition-all shrink-0',
+                    activeStroke === value
+                      ? 'border-white ring-2 ring-white ring-offset-1 ring-offset-zinc-900 scale-110'
+                      : 'border-zinc-700 hover:border-zinc-500',
+                  )}
+                  style={{ backgroundColor: value }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="space-y-1.5">
+          <span className="text-[10px] text-zinc-500 font-bold uppercase">{fillLabel}</span>
+          <div className="flex items-center gap-1.5">
+            {fillColors.map(({ value, label }) => (
+              <button
+                key={value}
+                title={label}
+                onClick={() => onFillChange(value)}
+                className={cn(
+                  'w-6 h-6 rounded border-2 cursor-pointer transition-all shrink-0',
+                  activeFill === value
+                    ? 'border-white ring-2 ring-white ring-offset-1 ring-offset-zinc-900 scale-110'
+                    : 'border-zinc-700 hover:border-zinc-500',
+                )}
+                style={{ backgroundColor: value }}
+              ></button>
+            ))}
+          </div>
         </div>
       </div>
-      <div className="space-y-1.5">
-        <span className="text-[10px] text-zinc-500 font-bold uppercase">{fillLabel}</span>
-        <div className="flex items-center gap-1.5">
-          {FILL_COLORS.map(({ value, label }) => (
-            <button
-              key={value}
-              title={label}
-              onClick={() => onFillChange(value)}
-              className={cn(
-                'w-6 h-6 rounded border-2 cursor-pointer transition-all shrink-0',
-                activeFill === value
-                  ? 'border-white ring-2 ring-white ring-offset-1 ring-offset-zinc-900 scale-110'
-                  : 'border-zinc-700 hover:border-zinc-500',
-              )}
-              style={{ backgroundColor: value }}
-            ></button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+    );
+  };
 
   const handleSingleColorChange = (field: 'stroke' | 'fill', color: string) => {
     if (!singleSelection) return;
     useWhiteboard.getState().saveHistory();
-    updateObject(singleSelection.id, { style: { ...singleSelection.style, [field]: color } });
+    // For text objects, background/fill updates apply to stroke instead
+    const actualField = (singleSelection.type === COT.Text && field === 'fill') ? 'stroke' : field;
+    updateObject(singleSelection.id, { style: { ...singleSelection.style, [actualField]: color } });
   };
 
   const handleMultiColorChange = (field: 'stroke' | 'fill', color: string) => {
     useWhiteboard.getState().saveHistory();
-    selectedObjects.forEach((obj) =>
-      updateObject(obj.id, { style: { ...obj.style, [field]: color } }),
-    );
+    selectedObjects.forEach((obj) => {
+      // For text objects, background/fill updates apply to stroke instead
+      const actualField = (obj.type === COT.Text && field === 'fill') ? 'stroke' : field;
+      updateObject(obj.id, { style: { ...obj.style, [actualField]: color } });
+    });
   };
 
   const multiActiveStroke =
@@ -471,13 +481,21 @@ export const UIOverlay: React.FC = () => {
             </button>
           </div>
 
-          {renderColorSection(
-            singleSelection.style.stroke ?? DEFAULT_STROKE,
-            singleSelection.style.fill ?? DEFAULT_FILL,
-            (c) => handleSingleColorChange('stroke', c),
-            (c) => handleSingleColorChange('fill', c),
-            singleSelection.type === COT.Text ? 'Text Color' : 'Background',
-          )}
+          {singleSelection.type === COT.Text
+            ? renderColorSection(
+                null,
+                singleSelection.style.stroke ?? DEFAULT_STROKE,
+                () => {},
+                (c) => handleSingleColorChange('fill', c),
+                'Text Color',
+                STROKE_COLORS,
+              )
+            : renderColorSection(
+                singleSelection.style.stroke ?? DEFAULT_STROKE,
+                singleSelection.style.fill ?? DEFAULT_FILL,
+                (c) => handleSingleColorChange('stroke', c),
+                (c) => handleSingleColorChange('fill', c),
+              )}
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-zinc-500 block">Appearance Frames</label>
@@ -642,12 +660,21 @@ export const UIOverlay: React.FC = () => {
           </div>
 
           <div className="space-y-3 pt-2 border-t border-zinc-800/50">
-            {renderColorSection(
-              multiActiveStroke,
-              multiActiveFill,
-              (c) => handleMultiColorChange('stroke', c),
-              (c) => handleMultiColorChange('fill', c),
-            )}
+            {selectedObjects.every((o) => o.type === COT.Text)
+              ? renderColorSection(
+                  null,
+                  multiActiveStroke,
+                  () => {},
+                  (c) => handleMultiColorChange('fill', c),
+                  'Text Color',
+                  STROKE_COLORS,
+                )
+              : renderColorSection(
+                  multiActiveStroke,
+                  multiActiveFill,
+                  (c) => handleMultiColorChange('stroke', c),
+                  (c) => handleMultiColorChange('fill', c),
+                )}
           </div>
 
           <div className="space-y-3 pt-2 border-t border-zinc-800/50">
