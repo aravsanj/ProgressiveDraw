@@ -184,6 +184,23 @@ export const useCanvasShortcuts = ({
           state.selectObjects(allTopLevelIds);
         }
       }
+
+      // Frame Navigation (Present Mode)
+      if (
+        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName) &&
+        !(e.target as HTMLElement).isContentEditable
+      ) {
+        const state = useWhiteboard.getState();
+        if (state.ui.mode === 'present') {
+          if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            state.prevFrame();
+          } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            state.nextFrame();
+          }
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDownGlobal);

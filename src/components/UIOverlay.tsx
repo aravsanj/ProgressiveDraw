@@ -165,6 +165,31 @@ export const UIOverlay: React.FC = () => {
       : null;
 
   const [isFullscreen, setIsFullscreen] = React.useState(!!document.fullscreenElement);
+  const [showPresentUI, setShowPresentUI] = React.useState(true);
+  const hideTimeoutRef = React.useRef<any>(null);
+
+  React.useEffect(() => {
+    if (ui.mode !== 'present') {
+      setShowPresentUI(true);
+      return;
+    }
+
+    const handleMouseMove = () => {
+      setShowPresentUI(true);
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowPresentUI(false);
+      }, 2000);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    handleMouseMove(); // Initial show
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    };
+  }, [ui.mode]);
 
   React.useEffect(() => {
     const handleFullscreenChange = () => {
@@ -190,7 +215,12 @@ export const UIOverlay: React.FC = () => {
 
   if (ui.mode === 'present') {
     return (
-      <div className="absolute bottom-6 right-6 flex items-center space-x-4">
+      <div
+        className={cn(
+          'absolute bottom-6 right-6 flex items-center space-x-4 transition-all duration-500 pointer-events-auto',
+          showPresentUI ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none',
+        )}
+      >
         <div className="bg-zinc-900/90 text-zinc-100 rounded-full px-4 py-2 backdrop-blur flex items-center space-x-4 shadow-xl border border-zinc-800">
           <button onClick={prevFrame} className="hover:text-blue-400 cursor-pointer">
             <ChevronLeft />
