@@ -176,6 +176,16 @@ export const useCanvasGestures = ({
               });
             } else if (obj.type === COT.Arrow || obj.type === COT.Line) {
               updateArrowPreview(drawingId!, x, y, start);
+            } else if (obj.type === COT.Pen) {
+              const currentObj = useWhiteboard.getState().objects[drawingId!];
+              if (!currentObj?.geometry.points) break;
+              const pts = currentObj.geometry.points;
+              const last = pts[pts.length - 1];
+              if (!last || Math.hypot(x - last.x, y - last.y) > 2) {
+                updateObject(drawingId!, {
+                  geometry: { ...currentObj.geometry, points: [...pts, { x, y }] },
+                });
+              }
             }
             break;
           }
@@ -206,7 +216,7 @@ export const useCanvasGestures = ({
                     y + height > selectionRect.y
                   );
                 }
-                if ((obj.type === COT.Arrow || obj.type === COT.Line) && obj.geometry.points) {
+                if ((obj.type === COT.Arrow || obj.type === COT.Line || obj.type === COT.Pen) && obj.geometry.points) {
                   return obj.geometry.points.some(
                     (p) =>
                       p.x >= selectionRect.x &&
@@ -245,6 +255,9 @@ export const useCanvasGestures = ({
           setSelectionRect(null);
           const obj = drawingId ? objects[drawingId] : null;
           if (!obj || (obj.type !== COT.Arrow && obj.type !== COT.Line)) {
+            if (obj?.type === COT.Pen) {
+              useWhiteboard.getState().saveHistory();
+            }
             setDrawingId(null);
             startPosRef.current = null;
           }
@@ -422,7 +435,17 @@ export const useCanvasGestures = ({
             }
           }
 
-          if (type === COT.Arrow || type === COT.Line) {
+          if (type === COT.Pen) {
+            const id = addObject({
+              type,
+              geometry: { x, y, points: [{ x, y }] },
+              style: { stroke: '#e4e4e7' },
+              appearFrame: currentFrame,
+            });
+            setDrawingId(id);
+            selectObject(id);
+            startPosRef.current = { x, y };
+          } else if (type === COT.Arrow || type === COT.Line) {
             const id = addObject({
               type,
               geometry: {

@@ -9,6 +9,7 @@ import { ArrowShape } from './shapes/ArrowShape';
 import { LineShape } from './shapes/LineShape';
 import { TextShape } from './shapes/TextShape';
 import { GroupShape } from './shapes/GroupShape';
+import { PenShape } from './shapes/PenShape';
 import { useGesture } from '@use-gesture/react';
 import { cn } from '../lib/utils';
 
@@ -518,7 +519,6 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
         moveObjects(idsToMove, dx / scale, dy / scale);
       },
       onDoubleClick: (state) => {
-        // Prevent event from bubbling up to create new objects if applicable
         state.event.stopPropagation();
         if (
           object.type === COT.Rectangle ||
@@ -564,6 +564,8 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
               return <ArrowShape object={visibleObject} isEditing={isEditing} />;
             case COT.Line:
               return <LineShape object={visibleObject} isEditing={isEditing} />;
+            case COT.Pen:
+              return <PenShape object={visibleObject} />;
             case COT.Text:
               return <TextShape object={visibleObject} isEditing={isEditing} />;
             case COT.Group:
@@ -804,7 +806,7 @@ export const ObjectRenderer: React.FC<Props> = ({ object }) => {
       {isSelected && !isEditing && (
         <>
           {/* Selection ring */}
-          {(object.type === COT.Arrow || object.type === COT.Line) && object.geometry.points ? (
+          {(object.type === COT.Arrow || object.type === COT.Line || object.type === COT.Pen) && object.geometry.points ? (
             <path
               d={`M ${object.geometry.points.map((p) => `${p.x},${p.y}`).join(' L ')}`}
               fill="none"

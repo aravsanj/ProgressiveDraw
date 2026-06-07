@@ -4,6 +4,7 @@ export const CanvasObjectType = {
   Ellipse: 'ellipse',
   Arrow: 'arrow',
   Line: 'line',
+  Pen: 'pen',
   Text: 'text',
   Group: 'group',
 } as const;
@@ -49,6 +50,7 @@ export const Tool = {
   Ellipse: 'ellipse',
   Arrow: 'arrow',
   Line: 'line',
+  Pen: 'pen',
   Text: 'text',
 } as const;
 

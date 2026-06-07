@@ -167,6 +167,7 @@ export const useCanvasShortcuts = ({
         else if (key === '4' || key === 'o') setTool(Tool.Ellipse);
         else if (key === '5' || key === 'a') setTool(Tool.Arrow);
         else if (key === '6' || key === 'l') setTool(Tool.Line);
+        else if (key === '7' || key === 'p') setTool(Tool.Pen);
         else if (key === '8' || key === 't') setTool(Tool.Text);
       }
 

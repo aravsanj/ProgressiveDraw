@@ -401,8 +401,8 @@ export const UIOverlay: React.FC = () => {
           icon={<Pen size={20} />}
           label="Freedraw (7, P)"
           subLabel="7"
-          disabled
-          onClick={() => {}}
+          active={ui.activeTool === Tool.Pen}
+          onClick={() => setTool(Tool.Pen)}
         />
         <ToolButton
           icon={<Type size={20} />}
@@ -608,6 +608,7 @@ export const UIOverlay: React.FC = () => {
                     else if (child.type === COT.Ellipse) IconComponent = Circle;
                     else if (child.type === COT.Arrow) IconComponent = ArrowRight;
                     else if (child.type === COT.Line) IconComponent = Minus;
+                    else if (child.type === COT.Pen) IconComponent = Pen;
                     else if (child.type === COT.Text) IconComponent = Type;
                     else if (child.type === COT.Group) IconComponent = Layers;
 
@@ -759,6 +760,7 @@ export const UIOverlay: React.FC = () => {
                 else if (obj.type === COT.Ellipse) Icon = Circle;
                 else if (obj.type === COT.Arrow) Icon = ArrowRight;
                 else if (obj.type === COT.Line) Icon = Minus;
+                else if (obj.type === COT.Pen) Icon = Pen;
                 else if (obj.type === COT.Text) Icon = Type;
                 else if (obj.type === COT.Group) Icon = Layers;
 

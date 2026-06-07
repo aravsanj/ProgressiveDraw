@@ -458,7 +458,7 @@ export const createObjectSlice: StateCreator<StoreWithDeps, [], [], ObjectSlice>
         const obj = newObjects[id];
         if (!obj) return;
 
-        if ((obj.type === COT.Arrow || obj.type === COT.Line) && obj.geometry.points) {
+        if ((obj.type === COT.Arrow || obj.type === COT.Line || obj.type === COT.Pen) && obj.geometry.points) {
           const newPoints = obj.geometry.points.map((p) => ({
             x: p.x + dx,
             y: p.y + dy,
@@ -466,8 +466,7 @@ export const createObjectSlice: StateCreator<StoreWithDeps, [], [], ObjectSlice>
           newObjects[id] = {
             ...obj,
             geometry: { ...obj.geometry, points: newPoints },
-            startConnection: undefined,
-            endConnection: undefined,
+            ...(obj.type !== COT.Pen && { startConnection: undefined, endConnection: undefined }),
           };
         } else {
           newObjects[id] = {
